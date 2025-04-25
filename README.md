@@ -77,16 +77,25 @@ To deploy this application, you'll need accounts with:
    yarn install
    ```
 
-4. Start the development server:
+4. Run the setup script to prepare the project structure:
+   ```bash
+   npm run setup
+   # or
+   yarn setup
+   ```
+
+5. Start the development server:
    ```bash
    npm run dev
    # or
    yarn dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Project Structure
+
+> **Note:** The project files are located in both the root directory and the `business-ai-simulator` subdirectory. The setup script copies files from the subdirectory to the root directory during build.
 
 - `/src/components` - Reusable UI components
 - `/src/pages` - Application pages

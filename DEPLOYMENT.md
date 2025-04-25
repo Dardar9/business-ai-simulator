@@ -76,6 +76,8 @@ Before you begin, ensure you have accounts with the following services:
 
 ## Step 4: Deploy to Vercel
 
+> **Important Note:** This project has a unique structure with files in both the root directory and the `business-ai-simulator` subdirectory. A setup script is included to copy files from the subdirectory to the root during build.
+
 1. **Fork the repository**:
    - Fork this repository to your GitHub account
 
@@ -86,7 +88,8 @@ Before you begin, ensure you have accounts with the following services:
    - Configure the project name and framework preset (Next.js)
 
 3. **Configure environment variables**:
-   - Add the following environment variables:
+   - In your Vercel project, go to Settings > Environment Variables
+   - Add the following environment variables one by one:
      ```
      NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
      NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -98,6 +101,8 @@ Before you begin, ensure you have accounts with the following services:
      NEXT_PUBLIC_APP_URL=your_vercel_deployment_url
      ```
    - Replace the placeholders with your actual values
+   - Make sure to click "Add" after each variable
+   - For sensitive variables like API keys, ensure they are marked as secrets
 
 4. **Deploy the application**:
    - Click "Deploy"
@@ -130,6 +135,7 @@ If you encounter issues during deployment, check the following:
 1. **Environment Variables**:
    - Ensure all environment variables are correctly set in Vercel
    - Check for typos or missing values
+   - If you see an error like `Environment Variable "NEXT_PUBLIC_SUPABASE_URL" references Secret "next_public_supabase_url", which does not exist`, it means you need to add the environment variables directly in the Vercel dashboard under Project Settings > Environment Variables, not as references to secrets
 
 2. **Auth0 Configuration**:
    - Verify that the callback URLs are correctly configured
