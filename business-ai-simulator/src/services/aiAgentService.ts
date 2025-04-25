@@ -116,7 +116,7 @@ const defaultAgentTemplates: Record<string, AgentTemplate> = {
 export const generateAgentsForBusiness = async (businessType: string, businessDescription: string): Promise<Agent[]> => {
   // In a real application, this would use AI to determine the appropriate agents for the business type
   // For now, we'll return a standard set of agents
-  
+
   const standardRoles = [
     AgentRole.CEO,
     AgentRole.CTO,
@@ -124,10 +124,10 @@ export const generateAgentsForBusiness = async (businessType: string, businessDe
     AgentRole.MARKETING_SPECIALIST,
     AgentRole.AI_ENGINEER,
   ];
-  
+
   // Add additional roles based on business type
   let additionalRoles: AgentRole[] = [];
-  
+
   if (businessType.toLowerCase().includes('tech') || businessType.toLowerCase().includes('software')) {
     additionalRoles = [
       AgentRole.SOFTWARE_DEVELOPER,
@@ -147,9 +147,11 @@ export const generateAgentsForBusiness = async (businessType: string, businessDe
       AgentRole.BUSINESS_ANALYST,
     ];
   }
-  
-  const allRoles = [...new Set([...standardRoles, ...additionalRoles])];
-  
+
+  // Create a combined array without duplicates
+  const combinedRoles = [...standardRoles, ...additionalRoles];
+  const allRoles = Array.from(new Set(combinedRoles));
+
   // Create agents from templates
   return allRoles.map(role => ({
     id: uuidv4(),
@@ -165,10 +167,10 @@ export const simulateAgentCommunication = async (
 ): Promise<{ agentId: string; message: string }[]> => {
   // In a real application, this would use AI to generate responses from each agent
   // For now, we'll return mock responses
-  
+
   // Simulate processing time
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   return agents
     .filter(agent => agent.id !== fromAgentId)
     .map(agent => {
@@ -183,10 +185,10 @@ export const simulateAgentCommunication = async (
 export const generateBusinessReport = async (business: Business, reportType: string): Promise<string> => {
   // In a real application, this would use AI to generate a detailed report
   // For now, we'll return a mock report
-  
+
   // Simulate processing time
   await new Promise(resolve => setTimeout(resolve, 2000));
-  
+
   return `
 # ${reportType} Report for ${business.name}
 
@@ -219,10 +221,10 @@ Based on the current business structure and market trends, we recommend:
 export const searchBusinessInformation = async (query: string): Promise<string> => {
   // In a real application, this would use an API to search the web
   // For now, we'll return mock results
-  
+
   // Simulate processing time
   await new Promise(resolve => setTimeout(resolve, 1500));
-  
+
   return `
 # Search Results for "${query}"
 
