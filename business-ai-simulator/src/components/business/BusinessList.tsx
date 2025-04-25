@@ -1,5 +1,14 @@
 import Link from 'next/link';
-import { Business } from '@/models/Business';
+
+// Define the Business interface directly in this file to avoid import issues
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: Date;
+  agents: any[];
+}
 
 interface BusinessListProps {
   businesses: Business[];
@@ -27,7 +36,7 @@ const BusinessList = ({ businesses }: BusinessListProps) => {
       <h2 className="text-2xl font-bold mb-6">My Businesses</h2>
       <div className="space-y-4">
         {businesses.map((business) => (
-          <Link 
+          <Link
             href={`/businesses/${business.id}`}
             key={business.id}
             className="block"

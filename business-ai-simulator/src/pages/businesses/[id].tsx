@@ -3,7 +3,58 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Business, Agent, Meeting, Task, Report } from '@/models/Business';
+
+// Define interfaces directly in this file to avoid import issues
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: Date;
+  agents: Agent[];
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  skills: string[];
+  avatar: string;
+}
+
+interface Meeting {
+  id: string;
+  title: string;
+  description: string;
+  date: Date;
+  duration: number;
+  attendees: string[];
+  agenda: string[];
+  notes?: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  assignedTo: string;
+  createdBy: string;
+  createdAt: Date;
+  dueDate: Date;
+  completedAt?: Date;
+}
+
+interface Report {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  createdAt: Date;
+  content: string;
+}
 
 // Mock data - in a real app, this would come from an API
 const mockBusinesses: Business[] = [];
@@ -11,27 +62,27 @@ const mockBusinesses: Business[] = [];
 export default function BusinessDetail() {
   const router = useRouter();
   const { id } = router.query;
-  
+
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
-  
+
   useEffect(() => {
     if (id) {
       // In a real app, this would be an API call
       const foundBusiness = mockBusinesses.find(b => b.id === id);
-      
+
       if (foundBusiness) {
         setBusiness(foundBusiness);
       } else {
         // If no business is found, redirect to the home page
         router.push('/');
       }
-      
+
       setLoading(false);
     }
   }, [id, router]);
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,7 +90,7 @@ export default function BusinessDetail() {
       </div>
     );
   }
-  
+
   if (!business) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -56,7 +107,7 @@ export default function BusinessDetail() {
       </div>
     );
   }
-  
+
   return (
     <>
       <Head>
@@ -72,7 +123,7 @@ export default function BusinessDetail() {
               {business.type} • Created on {business.createdAt.toLocaleDateString()}
             </p>
           </div>
-          
+
           <div className="mb-8">
             <nav className="flex border-b border-gray-200 dark:border-gray-700">
               <button
@@ -127,7 +178,7 @@ export default function BusinessDetail() {
               </button>
             </nav>
           </div>
-          
+
           <div className="mb-8">
             {activeTab === 'dashboard' && (
               <div>
@@ -147,14 +198,14 @@ export default function BusinessDetail() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="card">
                     <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
                     <p className="text-gray-500 dark:text-gray-400">
                       No recent activity to display.
                     </p>
                   </div>
-                  
+
                   <div className="card">
                     <h3 className="text-xl font-semibold mb-4">Upcoming Meetings</h3>
                     <p className="text-gray-500 dark:text-gray-400">
@@ -164,7 +215,7 @@ export default function BusinessDetail() {
                 </div>
               </div>
             )}
-            
+
             {activeTab === 'agents' && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">AI Agents</h2>
@@ -194,7 +245,7 @@ export default function BusinessDetail() {
                 </div>
               </div>
             )}
-            
+
             {activeTab === 'tasks' && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Tasks</h2>
@@ -205,7 +256,7 @@ export default function BusinessDetail() {
                 </div>
               </div>
             )}
-            
+
             {activeTab === 'meetings' && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Meetings</h2>
@@ -216,7 +267,7 @@ export default function BusinessDetail() {
                 </div>
               </div>
             )}
-            
+
             {activeTab === 'reports' && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Reports</h2>

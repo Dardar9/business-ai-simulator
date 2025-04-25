@@ -1,6 +1,24 @@
 import { useState } from 'react';
-import { Business } from '@/models/Business';
 import { v4 as uuidv4 } from 'uuid';
+
+// Define the Business and Agent interfaces directly in this file to avoid import issues
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: Date;
+  agents: Agent[];
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  skills: string[];
+  avatar: string;
+}
 
 interface BusinessCreationFormProps {
   onCreateBusiness: (business: Business) => void;
@@ -24,18 +42,18 @@ const BusinessCreationForm = ({ onCreateBusiness }: BusinessCreationFormProps) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.type) {
       alert('Please fill in all required fields');
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       // In a real application, this would call an API to create the business and generate agents
       // For now, we'll simulate the creation with a timeout
-      
+
       setTimeout(() => {
         const newBusiness: Business = {
           id: uuidv4(),
@@ -86,16 +104,16 @@ const BusinessCreationForm = ({ onCreateBusiness }: BusinessCreationFormProps) =
             },
           ],
         };
-        
+
         onCreateBusiness(newBusiness);
-        
+
         // Reset form
         setFormData({
           name: '',
           type: '',
           description: '',
         });
-        
+
         setIsLoading(false);
       }, 2000);
     } catch (error) {
@@ -123,7 +141,7 @@ const BusinessCreationForm = ({ onCreateBusiness }: BusinessCreationFormProps) =
             required
           />
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="type" className="block text-gray-700 dark:text-gray-300 mb-2">
             Business Type *
@@ -139,7 +157,7 @@ const BusinessCreationForm = ({ onCreateBusiness }: BusinessCreationFormProps) =
             required
           />
         </div>
-        
+
         <div className="mb-6">
           <label htmlFor="description" className="block text-gray-700 dark:text-gray-300 mb-2">
             Business Description
@@ -153,7 +171,7 @@ const BusinessCreationForm = ({ onCreateBusiness }: BusinessCreationFormProps) =
             placeholder="Describe your business idea, goals, and target market"
           />
         </div>
-        
+
         <button
           type="submit"
           className="btn-primary w-full"
