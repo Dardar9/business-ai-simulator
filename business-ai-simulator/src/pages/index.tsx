@@ -4,7 +4,16 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BusinessCreationForm from '@/components/business/BusinessCreationForm';
 import BusinessList from '@/components/business/BusinessList';
-import { Business } from '@/models/Business';
+
+// Define the Business interface directly in this file to avoid import issues
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: Date;
+  agents: any[];
+}
 
 export default function Home() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
