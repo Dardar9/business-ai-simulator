@@ -23,10 +23,13 @@ export default function Home() {
   // Load businesses from localStorage on component mount
   useEffect(() => {
     try {
-      const storedBusinesses = localStorage.getItem('businesses');
-      if (storedBusinesses) {
-        const parsedBusinesses = JSON.parse(storedBusinesses);
-        setBusinesses(parsedBusinesses);
+      // Check if window is defined (client-side)
+      if (typeof window !== 'undefined') {
+        const storedBusinesses = localStorage.getItem('businesses');
+        if (storedBusinesses) {
+          const parsedBusinesses = JSON.parse(storedBusinesses);
+          setBusinesses(parsedBusinesses);
+        }
       }
     } catch (error) {
       console.error('Error loading businesses from localStorage:', error);
@@ -38,14 +41,16 @@ export default function Home() {
     const updatedBusinesses = [...businesses, business];
     setBusinesses(updatedBusinesses);
 
-    // Save to localStorage
+    // Save to localStorage (only on client-side)
     try {
-      localStorage.setItem('businesses', JSON.stringify(updatedBusinesses));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('businesses', JSON.stringify(updatedBusinesses));
 
-      // Redirect to the business detail page after a short delay
-      setTimeout(() => {
-        router.push(`/businesses/${business.id}`);
-      }, 1000);
+        // Redirect to the business detail page after a short delay
+        setTimeout(() => {
+          router.push(`/businesses/${business.id}`);
+        }, 1000);
+      }
     } catch (error) {
       console.error('Error saving businesses to localStorage:', error);
     }

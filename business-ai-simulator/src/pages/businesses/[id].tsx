@@ -67,22 +67,29 @@ export default function BusinessDetail() {
   useEffect(() => {
     if (id) {
       try {
-        // Get businesses from localStorage
-        const storedBusinesses = localStorage.getItem('businesses');
+        // Check if window is defined (client-side)
+        if (typeof window !== 'undefined') {
+          // Get businesses from localStorage
+          const storedBusinesses = localStorage.getItem('businesses');
 
-        if (storedBusinesses) {
-          const businesses = JSON.parse(storedBusinesses);
-          const foundBusiness = businesses.find((b: Business) => b.id === id);
+          if (storedBusinesses) {
+            const businesses = JSON.parse(storedBusinesses);
+            const foundBusiness = businesses.find((b: Business) => b.id === id);
 
-          if (foundBusiness) {
-            // Convert string dates back to Date objects
-            foundBusiness.createdAt = new Date(foundBusiness.createdAt);
-            setBusiness(foundBusiness);
+            if (foundBusiness) {
+              // Convert string dates back to Date objects
+              foundBusiness.createdAt = new Date(foundBusiness.createdAt);
+              setBusiness(foundBusiness);
+            } else {
+              console.error('Business not found with ID:', id);
+              // If business not found, redirect to businesses page
+              router.push('/businesses');
+            }
           } else {
-            console.error('Business not found with ID:', id);
+            console.error('No businesses found in localStorage');
+            // If no businesses found, redirect to home page
+            router.push('/');
           }
-        } else {
-          console.error('No businesses found in localStorage');
         }
       } catch (error) {
         console.error('Error loading business from localStorage:', error);

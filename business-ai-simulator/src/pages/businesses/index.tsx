@@ -21,18 +21,21 @@ export default function Businesses() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  
+
   useEffect(() => {
     // For now, we'll use localStorage to get businesses since we don't have a backend yet
     const fetchBusinesses = () => {
       try {
         setLoading(true);
-        
-        // Try to get businesses from localStorage
-        const storedBusinesses = localStorage.getItem('businesses');
-        if (storedBusinesses) {
-          const parsedBusinesses = JSON.parse(storedBusinesses);
-          setBusinesses(parsedBusinesses);
+
+        // Check if window is defined (client-side)
+        if (typeof window !== 'undefined') {
+          // Try to get businesses from localStorage
+          const storedBusinesses = localStorage.getItem('businesses');
+          if (storedBusinesses) {
+            const parsedBusinesses = JSON.parse(storedBusinesses);
+            setBusinesses(parsedBusinesses);
+          }
         }
       } catch (error) {
         console.error('Error fetching businesses:', error);
@@ -40,10 +43,10 @@ export default function Businesses() {
         setLoading(false);
       }
     };
-    
+
     fetchBusinesses();
   }, []);
-  
+
   return (
     <>
       <Head>
@@ -59,7 +62,7 @@ export default function Businesses() {
               Create New Business
             </Link>
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
@@ -79,7 +82,7 @@ export default function Businesses() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {businesses.map((business) => (
-                    <Link 
+                    <Link
                       href={`/businesses/${business.id}`}
                       key={business.id}
                       className="card hover:shadow-lg transition-shadow"

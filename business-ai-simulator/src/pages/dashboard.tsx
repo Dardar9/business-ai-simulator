@@ -21,15 +21,18 @@ export default function Dashboard() {
   useEffect(() => {
     // Load businesses from localStorage
     try {
-      const storedBusinesses = localStorage.getItem('businesses');
-      if (storedBusinesses) {
-        const parsedBusinesses = JSON.parse(storedBusinesses);
-        // Convert string dates back to Date objects
-        const businesses = parsedBusinesses.map((business: any) => ({
-          ...business,
-          createdAt: new Date(business.createdAt)
-        }));
-        setBusinesses(businesses);
+      // Check if window is defined (client-side)
+      if (typeof window !== 'undefined') {
+        const storedBusinesses = localStorage.getItem('businesses');
+        if (storedBusinesses) {
+          const parsedBusinesses = JSON.parse(storedBusinesses);
+          // Convert string dates back to Date objects
+          const businesses = parsedBusinesses.map((business: any) => ({
+            ...business,
+            createdAt: new Date(business.createdAt)
+          }));
+          setBusinesses(businesses);
+        }
       }
     } catch (error) {
       console.error('Error loading businesses from localStorage:', error);
