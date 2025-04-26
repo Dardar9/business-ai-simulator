@@ -1,9 +1,10 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BusinessCreationForm from '@/components/business/BusinessCreationForm';
 import BusinessList from '@/components/business/BusinessList';
+import { useRouter } from 'next/router';
 
 // Define the Business interface directly in this file to avoid import issues
 interface Business {
@@ -17,9 +18,37 @@ interface Business {
 
 export default function Home() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const router = useRouter();
+
+  // Load businesses from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedBusinesses = localStorage.getItem('businesses');
+      if (storedBusinesses) {
+        const parsedBusinesses = JSON.parse(storedBusinesses);
+        setBusinesses(parsedBusinesses);
+      }
+    } catch (error) {
+      console.error('Error loading businesses from localStorage:', error);
+    }
+  }, []);
 
   const handleCreateBusiness = (business: Business) => {
-    setBusinesses([...businesses, business]);
+    // Add the new business to the state
+    const updatedBusinesses = [...businesses, business];
+    setBusinesses(updatedBusinesses);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem('businesses', JSON.stringify(updatedBusinesses));
+
+      // Redirect to the business detail page after a short delay
+      setTimeout(() => {
+        router.push(`/businesses/${business.id}`);
+      }, 1000);
+    } catch (error) {
+      console.error('Error saving businesses to localStorage:', error);
+    }
   };
 
   return (

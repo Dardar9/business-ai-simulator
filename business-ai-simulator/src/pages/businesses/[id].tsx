@@ -56,9 +56,6 @@ interface Report {
   content: string;
 }
 
-// Mock data - in a real app, this would come from an API
-const mockBusinesses: Business[] = [];
-
 export default function BusinessDetail() {
   const router = useRouter();
   const { id } = router.query;
@@ -69,17 +66,29 @@ export default function BusinessDetail() {
 
   useEffect(() => {
     if (id) {
-      // In a real app, this would be an API call
-      const foundBusiness = mockBusinesses.find(b => b.id === id);
+      try {
+        // Get businesses from localStorage
+        const storedBusinesses = localStorage.getItem('businesses');
 
-      if (foundBusiness) {
-        setBusiness(foundBusiness);
-      } else {
-        // If no business is found, redirect to the home page
-        router.push('/');
+        if (storedBusinesses) {
+          const businesses = JSON.parse(storedBusinesses);
+          const foundBusiness = businesses.find((b: Business) => b.id === id);
+
+          if (foundBusiness) {
+            // Convert string dates back to Date objects
+            foundBusiness.createdAt = new Date(foundBusiness.createdAt);
+            setBusiness(foundBusiness);
+          } else {
+            console.error('Business not found with ID:', id);
+          }
+        } else {
+          console.error('No businesses found in localStorage');
+        }
+      } catch (error) {
+        console.error('Error loading business from localStorage:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
   }, [id, router]);
 
