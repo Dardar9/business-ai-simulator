@@ -1,20 +1,23 @@
 import Link from 'next/link';
-
-// Define the Business interface directly in this file to avoid import issues
-interface Business {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  createdAt: Date;
-  agents: any[];
-}
+import { Business } from '@/utils/supabaseClient';
 
 interface BusinessListProps {
   businesses: Business[];
+  loading?: boolean;
 }
 
-const BusinessList = ({ businesses }: BusinessListProps) => {
+const BusinessList = ({ businesses, loading = false }: BusinessListProps) => {
+  if (loading) {
+    return (
+      <div className="card">
+        <h2 className="text-2xl font-bold mb-6">My Businesses</h2>
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (businesses.length === 0) {
     return (
       <div className="card">
@@ -47,10 +50,10 @@ const BusinessList = ({ businesses }: BusinessListProps) => {
                 Type: {business.type}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                Created: {business.createdAt.toLocaleDateString()}
+                Created: {new Date(business.created_at).toLocaleDateString()}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Agents: {business.agents.length}
+                Agents: {business.agents?.length || 0}
               </p>
             </div>
           </Link>

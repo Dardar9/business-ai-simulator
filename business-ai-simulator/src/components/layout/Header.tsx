@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/utils/auth';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   return (
     <header className="bg-white dark:bg-gray-900 shadow-md">
@@ -19,12 +21,33 @@ const Header = () => {
             <Link href="/" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
               Home
             </Link>
-            <Link href="/dashboard" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
-              Dashboard
-            </Link>
-            <Link href="/businesses" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
-              My Businesses
-            </Link>
+
+            {user ? (
+              <>
+                <Link href="/dashboard" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Dashboard
+                </Link>
+                <Link href="/businesses" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  My Businesses
+                </Link>
+                <button
+                  onClick={() => signOut()}
+                  className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400"
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Log In
+                </Link>
+                <Link href="/signup" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Sign Up
+                </Link>
+              </>
+            )}
+
             <Link href="/about" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
               About
             </Link>
@@ -67,12 +90,33 @@ const Header = () => {
             <Link href="/" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
               Home
             </Link>
-            <Link href="/dashboard" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
-              Dashboard
-            </Link>
-            <Link href="/businesses" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
-              My Businesses
-            </Link>
+
+            {user ? (
+              <>
+                <Link href="/dashboard" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Dashboard
+                </Link>
+                <Link href="/businesses" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  My Businesses
+                </Link>
+                <button
+                  onClick={() => signOut()}
+                  className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400"
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Log In
+                </Link>
+                <Link href="/signup" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
+                  Sign Up
+                </Link>
+              </>
+            )}
+
             <Link href="/about" className="block text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400">
               About
             </Link>

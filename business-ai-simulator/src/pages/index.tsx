@@ -5,55 +5,40 @@ import Footer from '@/components/layout/Footer';
 import BusinessCreationForm from '@/components/business/BusinessCreationForm';
 import BusinessList from '@/components/business/BusinessList';
 import { useRouter } from 'next/router';
-
-// Define the Business interface directly in this file to avoid import issues
-interface Business {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  createdAt: Date;
-  agents: any[];
-}
+import { useAuth } from '@/utils/auth';
+import { getBusinesses } from '@/utils/supabaseUtils';
+import { Business } from '@/utils/supabaseClient';
 
 export default function Home() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user, userId } = useAuth();
 
-  // Load businesses from localStorage on component mount
+  // Load businesses from Supabase when user is authenticated
   useEffect(() => {
-    try {
-      // Check if window is defined (client-side)
-      if (typeof window !== 'undefined') {
-        const storedBusinesses = localStorage.getItem('businesses');
-        if (storedBusinesses) {
-          const parsedBusinesses = JSON.parse(storedBusinesses);
-          setBusinesses(parsedBusinesses);
+    const fetchBusinesses = async () => {
+      if (userId) {
+        try {
+          setLoading(true);
+          const businessesData = await getBusinesses(userId);
+          setBusinesses(businessesData);
+        } catch (error) {
+          console.error('Error fetching businesses:', error);
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading businesses from localStorage:', error);
-    }
-  }, []);
+    };
 
-  const handleCreateBusiness = (business: Business) => {
-    // Add the new business to the state
-    const updatedBusinesses = [...businesses, business];
-    setBusinesses(updatedBusinesses);
+    fetchBusinesses();
+  }, [userId]);
 
-    // Save to localStorage (only on client-side)
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('businesses', JSON.stringify(updatedBusinesses));
-
-        // Redirect to the business detail page after a short delay
-        setTimeout(() => {
-          router.push(`/businesses/${business.id}`);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Error saving businesses to localStorage:', error);
-    }
+  const handleCreateBusiness = (business: Partial<Business>) => {
+    // Redirect to the create business page
+    router.push('/create-business');
   };
 
   return (
@@ -78,7 +63,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-12">
             <BusinessCreationForm onCreateBusiness={handleCreateBusiness} />
-            <BusinessList businesses={businesses} />
+            <BusinessList businesses={businesses} loading={loading} />
           </div>
         </main>
         <Footer />

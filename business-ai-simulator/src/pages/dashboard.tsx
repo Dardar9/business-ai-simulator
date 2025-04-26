@@ -3,46 +3,38 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-
-// Define the Business interface directly in this file to avoid import issues
-interface Business {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  createdAt: Date;
-  agents: any[];
-}
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/utils/auth';
+import { getBusinesses } from '@/utils/supabaseUtils';
+import { Business } from '@/utils/supabaseClient';
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user, userId } = useAuth();
 
   useEffect(() => {
-    // Load businesses from localStorage
-    try {
-      // Check if window is defined (client-side)
-      if (typeof window !== 'undefined') {
-        const storedBusinesses = localStorage.getItem('businesses');
-        if (storedBusinesses) {
-          const parsedBusinesses = JSON.parse(storedBusinesses);
-          // Convert string dates back to Date objects
-          const businesses = parsedBusinesses.map((business: any) => ({
-            ...business,
-            createdAt: new Date(business.createdAt)
-          }));
-          setBusinesses(businesses);
+    const fetchBusinesses = async () => {
+      if (userId) {
+        try {
+          setLoading(true);
+          const businessesData = await getBusinesses(userId);
+          setBusinesses(businessesData);
+        } catch (error) {
+          console.error('Error fetching businesses:', error);
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading businesses from localStorage:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    };
+
+    fetchBusinesses();
+  }, [userId]);
 
   return (
-    <>
+    <ProtectedRoute>
       <Head>
         <title>Dashboard - Business AI Simulator</title>
         <meta name="description" content="Manage your AI-powered businesses" />
@@ -78,7 +70,7 @@ export default function Dashboard() {
                     >
                       <h2 className="text-xl font-bold mb-2">{business.name}</h2>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        {business.type} • Created {new Date(business.createdAt).toLocaleDateString()}
+                        {business.type} • Created {new Date(business.created_at).toLocaleDateString()}
                       </p>
                       <p className="mb-4 line-clamp-2">{business.description}</p>
                       <div className="flex justify-between items-center">
@@ -157,6 +149,6 @@ export default function Dashboard() {
         </main>
         <Footer />
       </div>
-    </>
+    </ProtectedRoute>
   );
 }

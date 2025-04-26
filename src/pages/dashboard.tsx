@@ -3,54 +3,25 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Business } from '@/models/Business';
-import { useAuth } from '@/utils/auth';
-import { supabase } from '@/utils/supabaseClient';
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
   
   useEffect(() => {
-    const fetchBusinesses = async () => {
-      if (!user) return;
-      
-      try {
-        setLoading(true);
-        
-        if (supabase) {
-          // Fetch businesses from Supabase
-          const { data, error } = await supabase
-            .from('businesses')
-            .select('*')
-            .eq('user_id', user.sub)
-            .order('created_at', { ascending: false });
-          
-          if (error) {
-            throw error;
-          }
-          
-          setBusinesses(data || []);
-        } else {
-          // Simulate loading with empty data
-          setTimeout(() => {
-            setBusinesses([]);
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('Error fetching businesses:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // In a real app, this would fetch data from an API
+    // For now, we'll simulate loading
+    const timer = setTimeout(() => {
+      setBusinesses([]);
+      setLoading(false);
+    }, 1000);
     
-    fetchBusinesses();
-  }, [user]);
+    return () => clearTimeout(timer);
+  }, []);
   
   return (
-    <ProtectedRoute>
+    <>
       <Head>
         <title>Dashboard - Business AI Simulator</title>
         <meta name="description" content="Manage your AI-powered businesses" />
@@ -58,15 +29,10 @@ export default function Dashboard() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <Link href="/create-business" className="btn-primary">
-              Create New Business
-            </Link>
-          </div>
+          <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
           
           {loading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
             </div>
           ) : (
@@ -77,41 +43,21 @@ export default function Dashboard() {
                   <p className="text-gray-600 dark:text-gray-400 mb-8">
                     You haven't created any businesses yet. Get started by creating your first AI-powered business.
                   </p>
-                  <Link href="/create-business" className="btn-primary">
+                  <Link href="/" className="btn-primary">
                     Create Your First Business
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  {businesses.map((business) => (
-                    <Link 
-                      href={`/businesses/${business.id}`}
-                      key={business.id}
-                      className="card hover:shadow-lg transition-shadow"
-                    >
-                      <h2 className="text-xl font-bold mb-2">{business.name}</h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        {business.type} • Created {new Date(business.createdAt).toLocaleDateString()}
-                      </p>
-                      <p className="mb-4 line-clamp-2">{business.description}</p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {business.agents?.length || 0} Agents
-                        </span>
-                        <span className="text-primary-600 dark:text-primary-400 font-medium">
-                          View Details →
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Business cards would go here */}
                 </div>
               )}
               
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="card">
                   <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
                   <div className="space-y-4">
-                    <Link href="/create-business" className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <Link href="/" className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                       <h3 className="font-semibold">Create New Business</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         Start a new AI-powered business simulation
@@ -170,6 +116,6 @@ export default function Dashboard() {
         </main>
         <Footer />
       </div>
-    </ProtectedRoute>
+    </>
   );
 }

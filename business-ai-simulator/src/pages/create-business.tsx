@@ -3,8 +3,12 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Business } from '@/models/Business';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/utils/auth';
+import { createBusiness } from '@/utils/supabaseUtils';
+import { Business } from '@/utils/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+import { generateAgentsForBusiness } from '@/services/aiAgentService';
 
 interface BusinessTemplate {
   id: string;
@@ -39,14 +43,16 @@ const businessTemplates: Record<string, BusinessTemplate> = {
 export default function CreateBusiness() {
   const router = useRouter();
   const { template: templateId } = router.query;
-  
+  const { userId } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: '',
     description: '',
   });
-  
+
   useEffect(() => {
     if (templateId && typeof templateId === 'string' && businessTemplates[templateId]) {
       const template = businessTemplates[templateId];
@@ -57,7 +63,7 @@ export default function CreateBusiness() {
       });
     }
   }, [templateId]);
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -65,44 +71,54 @@ export default function CreateBusiness() {
       [name]: value,
     });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.type) {
-      alert('Please fill in all required fields');
+      setError('Please fill in all required fields');
       return;
     }
-    
+
+    if (!userId) {
+      setError('You must be logged in to create a business');
+      return;
+    }
+
     setIsLoading(true);
-    
+    setError(null);
+
     try {
-      // In a real application, this would call an API to create the business
-      // For now, we'll simulate the creation with a timeout
-      
-      setTimeout(() => {
-        const newBusiness: Business = {
-          id: uuidv4(),
+      // Generate AI agents for the business
+      const agents = await generateAgentsForBusiness(formData.type, formData.description);
+
+      // Create the business in Supabase
+      const newBusiness = await createBusiness(
+        {
+          user_id: userId,
           name: formData.name,
           type: formData.type,
-          description: formData.description,
-          createdAt: new Date(),
-          agents: [],
-        };
-        
-        // In a real app, this would save the business to a database
-        // For now, we'll just redirect to the home page
-        
-        router.push('/');
-      }, 2000);
+          description: formData.description
+        },
+        agents
+      );
+
+      if (newBusiness) {
+        // Redirect to the business detail page
+        router.push(`/businesses/${newBusiness.id}`);
+      } else {
+        setError('Failed to create business. Please try again.');
+      }
     } catch (error) {
       console.error('Error creating business:', error);
+      setError('An error occurred while creating your business. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
-  
+
   return (
-    <>
+    <ProtectedRoute>
       <Head>
         <title>Create Business - Business AI Simulator</title>
         <meta name="description" content="Create a new AI-powered business" />
@@ -111,7 +127,13 @@ export default function CreateBusiness() {
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-8">Create a New Business</h1>
-          
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+              {error}
+            </div>
+          )}
+
           <div className="max-w-2xl mx-auto">
             <div className="card">
               <form onSubmit={handleSubmit}>
@@ -130,7 +152,7 @@ export default function CreateBusiness() {
                     required
                   />
                 </div>
-                
+
                 <div className="mb-4">
                   <label htmlFor="type" className="block text-gray-700 dark:text-gray-300 mb-2">
                     Business Type *
@@ -146,7 +168,7 @@ export default function CreateBusiness() {
                     required
                   />
                 </div>
-                
+
                 <div className="mb-6">
                   <label htmlFor="description" className="block text-gray-700 dark:text-gray-300 mb-2">
                     Business Description
@@ -160,7 +182,7 @@ export default function CreateBusiness() {
                     placeholder="Describe your business idea, goals, and target market"
                   />
                 </div>
-                
+
                 <div className="flex justify-between">
                   <button
                     type="button"
@@ -169,7 +191,7 @@ export default function CreateBusiness() {
                   >
                     Cancel
                   </button>
-                  
+
                   <button
                     type="submit"
                     className="btn-primary"
@@ -194,6 +216,6 @@ export default function CreateBusiness() {
         </main>
         <Footer />
       </div>
-    </>
+    </ProtectedRoute>
   );
 }

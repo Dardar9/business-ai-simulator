@@ -3,25 +3,10 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-
-// Define interfaces directly in this file to avoid import issues
-interface Business {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  createdAt: Date;
-  agents: Agent[];
-}
-
-interface Agent {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-  skills: string[];
-  avatar: string;
-}
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/utils/auth';
+import { getBusinessById } from '@/utils/supabaseUtils';
+import { Business, Agent } from '@/utils/supabaseClient';
 
 interface Meeting {
   id: string;
@@ -65,38 +50,28 @@ export default function BusinessDetail() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    if (id) {
-      try {
-        // Check if window is defined (client-side)
-        if (typeof window !== 'undefined') {
-          // Get businesses from localStorage
-          const storedBusinesses = localStorage.getItem('businesses');
+    const fetchBusiness = async () => {
+      if (id && typeof id === 'string') {
+        try {
+          setLoading(true);
+          const businessData = await getBusinessById(id);
 
-          if (storedBusinesses) {
-            const businesses = JSON.parse(storedBusinesses);
-            const foundBusiness = businesses.find((b: Business) => b.id === id);
-
-            if (foundBusiness) {
-              // Convert string dates back to Date objects
-              foundBusiness.createdAt = new Date(foundBusiness.createdAt);
-              setBusiness(foundBusiness);
-            } else {
-              console.error('Business not found with ID:', id);
-              // If business not found, redirect to businesses page
-              router.push('/businesses');
-            }
+          if (businessData) {
+            setBusiness(businessData);
           } else {
-            console.error('No businesses found in localStorage');
-            // If no businesses found, redirect to home page
-            router.push('/');
+            console.error('Business not found with ID:', id);
+            // If business not found, redirect to businesses page
+            router.push('/businesses');
           }
+        } catch (error) {
+          console.error('Error fetching business:', error);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading business from localStorage:', error);
-      } finally {
-        setLoading(false);
       }
-    }
+    };
+
+    fetchBusiness();
   }, [id, router]);
 
   if (loading) {
@@ -125,7 +100,7 @@ export default function BusinessDetail() {
   }
 
   return (
-    <>
+    <ProtectedRoute>
       <Head>
         <title>{business.name} - Business AI Simulator</title>
         <meta name="description" content={`Manage your ${business.name} business with AI agents`} />
@@ -136,7 +111,7 @@ export default function BusinessDetail() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">{business.name}</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {business.type} • Created on {business.createdAt.toLocaleDateString()}
+              {business.type} • Created on {new Date(business.created_at).toLocaleDateString()}
             </p>
           </div>
 
@@ -298,6 +273,6 @@ export default function BusinessDetail() {
         </main>
         <Footer />
       </div>
-    </>
+    </ProtectedRoute>
   );
 }
