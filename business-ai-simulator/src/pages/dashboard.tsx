@@ -3,23 +3,41 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { Business } from '@/models/Business';
+
+// Define the Business interface directly in this file to avoid import issues
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: Date;
+  agents: any[];
+}
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
-    // In a real app, this would fetch data from an API
-    // For now, we'll simulate loading
-    const timer = setTimeout(() => {
-      setBusinesses([]);
+    // Load businesses from localStorage
+    try {
+      const storedBusinesses = localStorage.getItem('businesses');
+      if (storedBusinesses) {
+        const parsedBusinesses = JSON.parse(storedBusinesses);
+        // Convert string dates back to Date objects
+        const businesses = parsedBusinesses.map((business: any) => ({
+          ...business,
+          createdAt: new Date(business.createdAt)
+        }));
+        setBusinesses(businesses);
+      }
+    } catch (error) {
+      console.error('Error loading businesses from localStorage:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
+    }
   }, []);
-  
+
   return (
     <>
       <Head>
@@ -30,7 +48,7 @@ export default function Dashboard() {
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-          
+
           {loading ? (
             <div className="flex justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
@@ -49,10 +67,30 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Business cards would go here */}
+                  {businesses.map((business) => (
+                    <Link
+                      href={`/businesses/${business.id}`}
+                      key={business.id}
+                      className="card hover:shadow-lg transition-shadow"
+                    >
+                      <h2 className="text-xl font-bold mb-2">{business.name}</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        {business.type} • Created {new Date(business.createdAt).toLocaleDateString()}
+                      </p>
+                      <p className="mb-4 line-clamp-2">{business.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {business.agents?.length || 0} Agents
+                        </span>
+                        <span className="text-primary-600 dark:text-primary-400 font-medium">
+                          View Details →
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
-              
+
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="card">
                   <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
@@ -77,7 +115,7 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 </div>
-                
+
                 <div className="card">
                   <h2 className="text-xl font-bold mb-4">Latest Updates</h2>
                   <div className="space-y-4">
