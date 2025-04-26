@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS charts (
 CREATE TABLE IF NOT EXISTS communications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   business_id UUID NOT NULL,
-  from_agent_id TEXT NOT NULL, -- Can be an agent ID or 'owner'
+  from_agent_id VARCHAR(255) NOT NULL, -- Can be an agent ID or 'owner'
   to_agent_id UUID NOT NULL,
   message TEXT NOT NULL,
   response TEXT,
@@ -242,7 +242,7 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('business-files', 'Busine
 -- Set up RLS for storage
 CREATE POLICY "Users can access their own business files" ON storage.objects
   FOR ALL USING (
-    auth.uid() = (
+    auth.uid()::text = (
       SELECT user_id FROM businesses
       WHERE id::text = SPLIT_PART(storage.objects.name, '/', 1)
     )
