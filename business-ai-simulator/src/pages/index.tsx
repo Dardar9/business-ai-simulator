@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/utils/auth';
 import { getBusinesses } from '@/utils/supabaseUtils';
 import { Business } from '@/utils/supabaseClient';
+import { Business as FormBusiness } from '@/components/business/BusinessCreationForm';
 
 export default function Home() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -36,7 +37,7 @@ export default function Home() {
     fetchBusinesses();
   }, [userId]);
 
-  const handleCreateBusiness = (business: Partial<Business>) => {
+  const handleCreateBusiness = (business: FormBusiness) => {
     // Redirect to the create business page
     router.push('/create-business');
   };

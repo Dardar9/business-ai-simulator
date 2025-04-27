@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define the Business and Agent interfaces directly in this file to avoid import issues
-interface Business {
+export interface Business {
   id: string;
   name: string;
   type: string;
@@ -11,7 +11,7 @@ interface Business {
   agents: Agent[];
 }
 
-interface Agent {
+export interface Agent {
   id: string;
   name: string;
   role: string;
