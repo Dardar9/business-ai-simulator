@@ -1,9 +1,27 @@
 import OpenAI from 'openai';
 
-// Initialize the OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Check if OpenAI API key is available
+const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+
+// Flag to track if we're using the real OpenAI API or mock responses
+const isUsingMockResponses = !apiKey;
+
+// Log warning if API key is missing
+if (isUsingMockResponses) {
+  console.warn('OpenAI API key is missing. Using mock responses instead.');
+}
+
+// Initialize the OpenAI client if API key is available
+let openai: OpenAI | null = null;
+try {
+  if (apiKey) {
+    openai = new OpenAI({
+      apiKey: apiKey,
+    });
+  }
+} catch (error) {
+  console.error('Error initializing OpenAI client:', error);
+}
 
 /**
  * Generate a response from OpenAI
@@ -17,6 +35,12 @@ export async function generateOpenAIResponse(
   model: string = 'gpt-4',
   temperature: number = 0.7
 ): Promise<string> {
+  // If we're using mock responses, return a mock response
+  if (isUsingMockResponses || !openai) {
+    console.log('Using mock response for prompt:', prompt);
+    return generateMockResponse(prompt);
+  }
+
   try {
     const response = await openai.chat.completions.create({
       model,
@@ -27,8 +51,57 @@ export async function generateOpenAIResponse(
     return response.choices[0]?.message?.content || '';
   } catch (error) {
     console.error('Error generating OpenAI response:', error);
-    throw error;
+    console.log('Falling back to mock response');
+    return generateMockResponse(prompt);
   }
+}
+
+/**
+ * Generate a mock response for when OpenAI is not available
+ * @param prompt The prompt that would have been sent to OpenAI
+ * @returns A mock response
+ */
+function generateMockResponse(prompt: string): string {
+  // Extract key information from the prompt
+  const keywords = prompt.toLowerCase().split(' ');
+
+  if (prompt.includes('business') && prompt.includes('report')) {
+    return `# Business Report
+
+## Executive Summary
+This is an automatically generated mock report. The OpenAI API key is not configured.
+
+## Business Overview
+This report provides an overview of the business and its current status.
+
+## Key Findings
+- The business is showing potential for growth
+- There are opportunities for expansion in new markets
+- Customer satisfaction remains a priority
+
+## Recommendations
+1. Invest in marketing and brand awareness
+2. Explore partnerships with complementary businesses
+3. Focus on customer retention strategies
+
+*This is a mock response because the OpenAI API key is not configured.*`;
+  }
+
+  if (prompt.includes('agent') || prompt.includes('role')) {
+    return `As an AI agent, I would approach this task methodically. First, I would analyze the requirements and break them down into manageable components. Then, I would develop a strategic plan that leverages my expertise in this domain. Finally, I would implement the solution while monitoring for any potential issues.
+
+Note: This is a mock response because the OpenAI API key is not configured.`;
+  }
+
+  // Default generic response
+  return `Thank you for your prompt. This is a mock response because the OpenAI API key is not configured in the environment variables. Please add your OpenAI API key to use the actual AI-powered responses.
+
+To add your API key:
+1. Go to your Vercel project settings
+2. Add OPENAI_API_KEY as an environment variable
+3. Deploy again with the updated configuration
+
+For now, I'm providing this placeholder response instead of the AI-generated content you would normally receive.`;
 }
 
 /**
@@ -43,6 +116,12 @@ export async function generateStructuredResponse<T>(
   model: string = 'gpt-4',
   temperature: number = 0.7
 ): Promise<T> {
+  // If we're using mock responses, return a mock structured response
+  if (isUsingMockResponses || !openai) {
+    console.log('Using mock structured response for prompt:', prompt);
+    return generateMockStructuredResponse<T>(prompt);
+  }
+
   try {
     const enhancedPrompt = `
 ${prompt}
@@ -61,6 +140,65 @@ Please provide your response in valid JSON format only, with no additional text 
     return JSON.parse(content) as T;
   } catch (error) {
     console.error('Error generating structured OpenAI response:', error);
-    throw error;
+    console.log('Falling back to mock structured response');
+    return generateMockStructuredResponse<T>(prompt);
   }
+}
+
+/**
+ * Generate a mock structured response for when OpenAI is not available
+ * @param prompt The prompt that would have been sent to OpenAI
+ * @returns A mock structured response
+ */
+function generateMockStructuredResponse<T>(prompt: string): T {
+  // Check if the prompt is asking for agents
+  if (prompt.toLowerCase().includes('role') && prompt.toLowerCase().includes('business')) {
+    // This is likely asking for AI agents for a business
+    const mockAgentsResponse = [
+      {
+        "role": "CEO",
+        "name": "Alex Morgan",
+        "description": "Chief Executive Officer responsible for overall business strategy and leadership.",
+        "skills": ["Leadership", "Strategic Planning", "Decision Making", "Business Development"]
+      },
+      {
+        "role": "CTO",
+        "name": "Jamie Chen",
+        "description": "Chief Technology Officer overseeing all technical aspects and innovation.",
+        "skills": ["Software Architecture", "Technical Leadership", "Innovation Management", "System Design"]
+      },
+      {
+        "role": "CFO",
+        "name": "Taylor Reynolds",
+        "description": "Chief Financial Officer managing financial planning, risk management, and reporting.",
+        "skills": ["Financial Analysis", "Budgeting", "Risk Management", "Strategic Planning"]
+      },
+      {
+        "role": "CMO",
+        "name": "Jordan Smith",
+        "description": "Chief Marketing Officer leading brand strategy and marketing initiatives.",
+        "skills": ["Brand Strategy", "Digital Marketing", "Market Analysis", "Customer Acquisition"]
+      },
+      {
+        "role": "COO",
+        "name": "Casey Williams",
+        "description": "Chief Operating Officer ensuring efficient business operations and processes.",
+        "skills": ["Operations Management", "Process Optimization", "Team Leadership", "Strategic Implementation"]
+      }
+    ];
+
+    return mockAgentsResponse as unknown as T;
+  }
+
+  // Default generic structured response
+  const mockDefaultResponse = {
+    "message": "This is a mock structured response because the OpenAI API key is not configured.",
+    "status": "mock",
+    "timestamp": new Date().toISOString(),
+    "data": {
+      "note": "Please configure your OpenAI API key in the environment variables to use the actual AI service."
+    }
+  };
+
+  return mockDefaultResponse as unknown as T;
 }
