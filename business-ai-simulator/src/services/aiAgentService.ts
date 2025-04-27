@@ -1,4 +1,5 @@
-import { Agent, AgentRole, Business } from '@/models/Business';
+import { Agent as ModelAgent, AgentRole, Business as ModelBusiness } from '@/models/Business';
+import { Agent, Business } from '@/utils/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // This is a mock service that would be replaced with actual AI API calls in a production environment

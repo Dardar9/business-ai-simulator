@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/utils/auth';
 import { createBusiness } from '@/utils/supabaseUtils';
 import { Business } from '@/utils/supabaseClient';
@@ -118,7 +117,7 @@ export default function CreateBusiness() {
   };
 
   return (
-    <ProtectedRoute>
+    <>
       <Head>
         <title>Create Business - Business AI Simulator</title>
         <meta name="description" content="Create a new AI-powered business" />
@@ -216,6 +215,6 @@ export default function CreateBusiness() {
         </main>
         <Footer />
       </div>
-    </ProtectedRoute>
+    </>
   );
 }
