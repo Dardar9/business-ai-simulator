@@ -1,8 +1,33 @@
 import { Agent as ModelAgent, AgentRole, Business as ModelBusiness } from '@/models/Business';
-import { Agent, Business } from '@/utils/supabaseClient';
+import { Agent as SupabaseAgent, Business } from '@/utils/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { generateOpenAIResponse, generateStructuredResponse } from './openaiService';
 import { searchWeb } from './webSearchService';
+
+// Define a simplified Agent type for internal use
+interface SimpleAgent {
+  id: string;
+  role: string;
+  name: string;
+  description: string;
+  skills: string[];
+  avatar: string;
+}
+
+// Function to convert SimpleAgent to SupabaseAgent
+const toSupabaseAgent = (agent: SimpleAgent, businessId: string): SupabaseAgent => {
+  return {
+    id: agent.id,
+    business_id: businessId,
+    name: agent.name,
+    role: agent.role,
+    description: agent.description,
+    skills: agent.skills,
+    avatar: agent.avatar,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+};
 
 // This is a mock service that would be replaced with actual AI API calls in a production environment
 
@@ -116,7 +141,9 @@ const defaultAgentTemplates: Record<string, AgentTemplate> = {
 };
 
 // Function to generate agents based on business type
-export const generateAgentsForBusiness = async (businessType: string, businessDescription: string): Promise<Agent[]> => {
+export const generateAgentsForBusiness = async (businessType: string, businessDescription: string): Promise<SupabaseAgent[]> => {
+  // Generate a business ID for the agents
+  const businessId = uuidv4();
   try {
     // First, try to use OpenAI to generate appropriate agents
     const prompt = `
@@ -160,7 +187,7 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
 
       // Validate and map the AI-generated agents to our Agent type
       if (Array.isArray(aiGeneratedAgents) && aiGeneratedAgents.length >= 3) {
-        return aiGeneratedAgents.map(agent => {
+        const simpleAgents: SimpleAgent[] = aiGeneratedAgents.map(agent => {
           // Find the matching AgentRole enum value
           const roleKey = Object.keys(AgentRole).find(
             key => AgentRole[key as keyof typeof AgentRole] === agent.role
@@ -180,6 +207,9 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
             avatar
           };
         });
+
+        // Convert SimpleAgent to SupabaseAgent
+        return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
       }
     } catch (error) {
       console.error('Error generating agents with AI:', error);
@@ -231,15 +261,18 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
     const allRoles = Array.from(new Set(combinedRoles));
 
     // Create agents from templates
-    return allRoles.map(role => ({
+    const simpleAgents: SimpleAgent[] = allRoles.map(role => ({
       id: uuidv4(),
       ...defaultAgentTemplates[role],
     }));
+
+    // Convert SimpleAgent to SupabaseAgent
+    return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
   } catch (error) {
     console.error('Error in generateAgentsForBusiness:', error);
 
     // Return a minimal set of agents if everything fails
-    return [
+    const simpleAgents: SimpleAgent[] = [
       {
         id: uuidv4(),
         ...defaultAgentTemplates[AgentRole.CEO],
@@ -253,6 +286,9 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
         ...defaultAgentTemplates[AgentRole.CFO],
       }
     ];
+
+    // Convert SimpleAgent to SupabaseAgent
+    return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
   }
 };
 
