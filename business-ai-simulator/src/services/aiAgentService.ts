@@ -281,7 +281,7 @@ export const simulateAgentCommunication = async (
         try {
           const prompt = `
 You are an AI agent named ${agent.name} with the role of ${agent.role} in a business simulation.
-Your skills include: ${agent.skills.join(', ')}.
+Your skills include: ${agent.skills?.join(', ') || 'various skills'}.
 
 You've received the following message from ${fromAgent ? fromAgent.name : 'someone'} (${fromAgentRole}):
 "${message}"
@@ -345,7 +345,7 @@ Business Type: ${business.type}
 Business Description: ${business.description || 'No description provided.'}
 
 Team Structure:
-${business.agents.map(agent => `- ${agent.name} (${agent.role})`).join('\n')}
+${business.agents?.map(agent => `- ${agent.name} (${agent.role})`)?.join('\n') || 'No agents available.'}
 
 Market Information:
 ${marketInfo}
@@ -379,8 +379,8 @@ This is an automatically generated report for ${business.name}, a ${business.typ
 ${business.description || 'No business description provided.'}
 
 ## Team Structure
-The business currently has ${business.agents.length} AI agents in the following roles:
-${business.agents.map(agent => `- ${agent.name} (${agent.role})`).join('\n')}
+The business currently has ${business.agents?.length || 0} AI agents in the following roles:
+${business.agents?.map(agent => `- ${agent.name} (${agent.role})`)?.join('\n') || 'No agents available.'}
 
 ## Market Information
 ${marketInfo}
@@ -413,8 +413,8 @@ This is an automatically generated report for ${business.name}, a ${business.typ
 ${business.description || 'No business description provided.'}
 
 ## Team Structure
-The business currently has ${business.agents.length} AI agents in the following roles:
-${business.agents.map(agent => `- ${agent.name} (${agent.role})`).join('\n')}
+The business currently has ${business.agents?.length || 0} AI agents in the following roles:
+${business.agents?.map(agent => `- ${agent.name} (${agent.role})`)?.join('\n') || 'No agents available.'}
 
 ## Recommendations
 Based on the current business structure, we recommend:
