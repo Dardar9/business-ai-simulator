@@ -67,6 +67,9 @@ export const createBusiness = async (
   agents: Omit<Agent, 'id' | 'business_id' | 'created_at' | 'updated_at'>[]
 ): Promise<Business | null> => {
   try {
+    console.log('Creating business:', business);
+    console.log('With agents:', agents);
+
     // Create the business
     const { data: newBusiness, error: businessError } = await supabase
       .from('businesses')
@@ -84,13 +87,36 @@ export const createBusiness = async (
       return null;
     }
 
+    console.log('Business created successfully:', newBusiness);
+
     // Create agents for the business
-    if (agents.length > 0) {
-      const agentsWithBusinessId = agents.map(agent => ({
-        ...agent,
-        business_id: newBusiness.id,
-        skills: agent.skills ? JSON.stringify(agent.skills) : null
-      }));
+    if (agents && agents.length > 0) {
+      // Make sure all required fields are present and properly formatted
+      const agentsWithBusinessId = agents.map(agent => {
+        // Ensure skills is properly formatted for Supabase
+        let formattedSkills = null;
+        if (agent.skills) {
+          // If skills is already a string, use it as is
+          if (typeof agent.skills === 'string') {
+            formattedSkills = agent.skills;
+          }
+          // If skills is an array, stringify it
+          else if (Array.isArray(agent.skills)) {
+            formattedSkills = JSON.stringify(agent.skills);
+          }
+        }
+
+        return {
+          name: agent.name,
+          role: agent.role,
+          description: agent.description || '',
+          skills: formattedSkills,
+          avatar: agent.avatar || '',
+          business_id: newBusiness.id
+        };
+      });
+
+      console.log('Formatted agents for insertion:', agentsWithBusinessId);
 
       const { data: newAgents, error: agentsError } = await supabase
         .from('agents')
@@ -99,6 +125,8 @@ export const createBusiness = async (
 
       if (agentsError) {
         console.error('Error creating agents:', agentsError);
+      } else {
+        console.log('Agents created successfully:', newAgents);
       }
 
       // Add agents to the business object

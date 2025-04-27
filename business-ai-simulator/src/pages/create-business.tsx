@@ -88,10 +88,17 @@ export default function CreateBusiness() {
     setError(null);
 
     try {
+      console.log('Starting business creation process...');
+      console.log('User ID:', userId);
+      console.log('Form data:', formData);
+
       // Generate AI agents for the business
+      console.log('Generating agents for business...');
       const agents = await generateAgentsForBusiness(formData.type, formData.description);
+      console.log('Generated agents:', agents);
 
       // Create the business in Supabase
+      console.log('Creating business in Supabase...');
       const newBusiness = await createBusiness(
         {
           user_id: userId,
@@ -101,16 +108,30 @@ export default function CreateBusiness() {
         },
         agents
       );
+      console.log('Business creation result:', newBusiness);
 
       if (newBusiness) {
+        console.log('Business created successfully, redirecting to detail page...');
         // Redirect to the business detail page
         router.push(`/businesses/${newBusiness.id}`);
       } else {
+        console.error('Failed to create business, no business returned');
         setError('Failed to create business. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating business:', error);
-      setError('An error occurred while creating your business. Please try again.');
+      // Provide more detailed error information
+      let errorMessage = 'An error occurred while creating your business. Please try again.';
+
+      if (error.message) {
+        errorMessage += ` Error details: ${error.message}`;
+      }
+
+      if (error.code) {
+        errorMessage += ` (Code: ${error.code})`;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
