@@ -180,7 +180,7 @@ export default function BusinessDetail() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Agents</p>
-                        <p className="text-2xl font-bold">{business.agents.length}</p>
+                        <p className="text-2xl font-bold">{business.agents?.length || 0}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Tasks</p>
@@ -210,7 +210,7 @@ export default function BusinessDetail() {
               <div>
                 <h2 className="text-2xl font-bold mb-6">AI Agents</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {business.agents.map((agent) => (
+                  {business.agents?.map((agent) => (
                     <div key={agent.id} className="card">
                       <div className="flex items-center mb-4">
                         <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full mr-4"></div>
@@ -221,7 +221,7 @@ export default function BusinessDetail() {
                       </div>
                       <p className="mb-4">{agent.description}</p>
                       <div className="flex flex-wrap gap-2">
-                        {agent.skills.map((skill, index) => (
+                        {agent.skills?.map((skill, index) => (
                           <span
                             key={index}
                             className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded"
