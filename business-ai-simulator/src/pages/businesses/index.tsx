@@ -3,7 +3,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/utils/auth';
 import { getBusinesses } from '@/utils/supabaseUtils';
 import { Business } from '@/utils/supabaseClient';
@@ -34,7 +33,7 @@ export default function Businesses() {
   }, [userId]);
 
   return (
-    <ProtectedRoute>
+    <>
       <Head>
         <title>My Businesses - Business AI Simulator</title>
         <meta name="description" content="Manage your AI-powered businesses" />
@@ -95,6 +94,6 @@ export default function Businesses() {
         </main>
         <Footer />
       </div>
-    </ProtectedRoute>
+    </>
   );
 }
