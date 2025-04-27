@@ -294,7 +294,7 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
 
 // Function to simulate agent communication
 export const simulateAgentCommunication = async (
-  agents: Agent[],
+  agents: SupabaseAgent[],
   message: string,
   fromAgentId?: string
 ): Promise<{ agentId: string; message: string }[]> => {
