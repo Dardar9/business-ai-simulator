@@ -1,26 +1,20 @@
-import OpenAI from 'openai';
+// No need to import OpenAI directly anymore
+// We'll use our secure API routes instead
 
-// Check if OpenAI API key is available
-const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+// Flag to track if we're in a browser environment
+// This helps us determine if we should use mock responses for SSR
+const isBrowser = typeof window !== 'undefined';
 
-// Flag to track if we're using the real OpenAI API or mock responses
-const isUsingMockResponses = !apiKey;
+// We'll check if we're in development mode to show appropriate warnings
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Log warning if API key is missing
-if (isUsingMockResponses) {
-  console.warn('OpenAI API key is missing. Using mock responses instead.');
-}
+// Flag to track if we should use mock responses
+// We'll always use real responses in production through our API routes
+const isUsingMockResponses = isDevelopment && !isBrowser;
 
-// Initialize the OpenAI client if API key is available
-let openai: OpenAI | null = null;
-try {
-  if (apiKey) {
-    openai = new OpenAI({
-      apiKey: apiKey,
-    });
-  }
-} catch (error) {
-  console.error('Error initializing OpenAI client:', error);
+// Log warning if we're using mock responses in development
+if (isUsingMockResponses && isDevelopment) {
+  console.warn('Using mock responses for server-side rendering in development mode.');
 }
 
 /**
@@ -32,23 +26,36 @@ try {
  */
 export async function generateOpenAIResponse(
   prompt: string,
-  model: string = 'gpt-4',
+  model: string = 'gpt-3.5-turbo',
   temperature: number = 0.7
 ): Promise<string> {
-  // If we're using mock responses, return a mock response
-  if (isUsingMockResponses || !openai) {
-    console.log('Using mock response for prompt:', prompt);
+  // If we're using mock responses (for SSR in development), return a mock response
+  if (isUsingMockResponses) {
+    console.log('Using mock response for prompt:', prompt.substring(0, 50) + '...');
     return generateMockResponse(prompt);
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature,
+    // Call our secure API route instead of using the OpenAI SDK directly
+    const response = await fetch('/api/openai/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model,
+        temperature,
+      }),
     });
 
-    return response.choices[0]?.message?.content || '';
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error calling OpenAI API');
+    }
+
+    const data = await response.json();
+    return data.result || '';
   } catch (error) {
     console.error('Error generating OpenAI response:', error);
     console.log('Falling back to mock response');
@@ -113,31 +120,43 @@ For now, I'm providing this placeholder response instead of the AI-generated con
  */
 export async function generateStructuredResponse<T>(
   prompt: string,
-  model: string = 'gpt-4',
+  model: string = 'gpt-3.5-turbo',
   temperature: number = 0.7
 ): Promise<T> {
-  // If we're using mock responses, return a mock structured response
-  if (isUsingMockResponses || !openai) {
-    console.log('Using mock structured response for prompt:', prompt);
+  // If we're using mock responses (for SSR in development), return a mock structured response
+  if (isUsingMockResponses) {
+    console.log('Using mock structured response for prompt:', prompt.substring(0, 50) + '...');
     return generateMockStructuredResponse<T>(prompt);
   }
 
   try {
+    // Enhance the prompt to ensure we get a proper JSON response
     const enhancedPrompt = `
 ${prompt}
 
 Please provide your response in valid JSON format only, with no additional text or explanations.
 `;
 
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: enhancedPrompt }],
-      temperature,
-      response_format: { type: 'json_object' },
+    // Call our secure API route instead of using the OpenAI SDK directly
+    const response = await fetch('/api/openai/structured', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: enhancedPrompt,
+        model,
+        temperature,
+      }),
     });
 
-    const content = response.choices[0]?.message?.content || '{}';
-    return JSON.parse(content) as T;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error calling OpenAI API for structured response');
+    }
+
+    const data = await response.json();
+    return data.result as T;
   } catch (error) {
     console.error('Error generating structured OpenAI response:', error);
     console.log('Falling back to mock structured response');

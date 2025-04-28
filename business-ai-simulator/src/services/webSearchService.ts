@@ -1,14 +1,19 @@
 import axios from 'axios';
 
-// Check if Serper API key is available
-const serperApiKey = process.env.NEXT_PUBLIC_SERPER_API_KEY || process.env.SERPER_API_KEY;
+// Flag to track if we're in a browser environment
+// This helps us determine if we should use mock responses for SSR
+const isBrowser = typeof window !== 'undefined';
 
-// Flag to track if we're using mock search results
-const isUsingMockSearchResults = !serperApiKey;
+// We'll check if we're in development mode to show appropriate warnings
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Log warning if API key is missing
-if (isUsingMockSearchResults) {
-  console.warn('Serper API key is missing. Using mock search results instead.');
+// Flag to track if we should use mock search results
+// We'll always use real responses in production through our API routes
+const isUsingMockSearchResults = isDevelopment && !isBrowser;
+
+// Log warning if we're using mock responses in development
+if (isUsingMockSearchResults && isDevelopment) {
+  console.warn('Using mock search results for server-side rendering in development mode.');
 }
 
 /**
@@ -16,43 +21,33 @@ if (isUsingMockSearchResults) {
  * @param query The search query
  * @returns The search results
  */
-export async function searchWeb(query: string): Promise<string> {
-  // If we're using mock search results, return mock data
+export async function searchWeb(query: string, num: number = 5): Promise<string> {
+  // If we're using mock search results (for SSR in development), return mock data
   if (isUsingMockSearchResults) {
-    console.log('Using mock search results for query:', query);
+    console.log('Using mock search results for query:', query.substring(0, 50) + '...');
     return generateMockSearchResults(query);
   }
 
   try {
-    const response = await axios.post(
-      'https://google.serper.dev/search',
-      {
-        q: query,
-        num: 5,
+    // Call our secure API route instead of using the Serper API directly
+    const response = await fetch('/api/search/web', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      {
-        headers: {
-          'X-API-KEY': serperApiKey,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    // Format the search results into a readable format
-    const organicResults = response.data.organic || [];
-    let formattedResults = `# Search Results for "${query}"\n\n`;
-
-    if (organicResults.length === 0) {
-      return `No search results found for "${query}".`;
-    }
-
-    organicResults.forEach((result: any, index: number) => {
-      formattedResults += `## ${index + 1}. ${result.title}\n`;
-      formattedResults += `${result.snippet}\n`;
-      formattedResults += `[Read more](${result.link})\n\n`;
+      body: JSON.stringify({
+        query,
+        num,
+      }),
     });
 
-    return formattedResults;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error calling search API');
+    }
+
+    const data = await response.json();
+    return data.results || `No search results found for "${query}".`;
   } catch (error) {
     console.error('Error searching the web:', error);
     console.log('Falling back to mock search results');
@@ -105,34 +100,7 @@ According to industry experts, the future of ${query} will be shaped by technolo
  * @returns The search results
  */
 export async function searchWebFallback(query: string): Promise<string> {
-  // If we're using mock search results, return mock data
-  if (isUsingMockSearchResults) {
-    console.log('Using mock search results for fallback query:', query);
-    return generateMockSearchResults(query);
-  }
-
-  try {
-    const response = await axios.get(
-      `https://ddg-api.herokuapp.com/search?query=${encodeURIComponent(query)}&limit=5`
-    );
-
-    const results = response.data || [];
-    let formattedResults = `# Search Results for "${query}"\n\n`;
-
-    if (results.length === 0) {
-      return `No search results found for "${query}".`;
-    }
-
-    results.forEach((result: any, index: number) => {
-      formattedResults += `## ${index + 1}. ${result.title}\n`;
-      formattedResults += `${result.snippet}\n`;
-      formattedResults += `[Read more](${result.link})\n\n`;
-    });
-
-    return formattedResults;
-  } catch (error) {
-    console.error('Error searching the web with fallback method:', error);
-    console.log('Falling back to mock search results');
-    return generateMockSearchResults(query);
-  }
+  // We'll just use our primary search function now that it's secure
+  // This ensures we're always using the server-side API key
+  return searchWeb(query);
 }
