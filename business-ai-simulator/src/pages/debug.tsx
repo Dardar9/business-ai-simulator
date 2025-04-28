@@ -6,10 +6,11 @@ import { useAuth } from '@/utils/auth';
 import { supabase } from '@/utils/supabaseClient';
 
 export default function DebugPage() {
-  const { user, userId, loading, refreshSession } = useAuth();
+  const { user, userId, loading, refreshSession, signOut } = useAuth();
   const [dbStatus, setDbStatus] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
+  const [supabaseEnv, setSupabaseEnv] = useState<any>(null);
 
   const testDatabase = async () => {
     setIsLoading(true);
@@ -28,7 +29,7 @@ export default function DebugPage() {
   const checkDbConnection = async () => {
     try {
       const { data, error } = await supabase.from('users').select('count').limit(1);
-      
+
       setDbStatus({
         connected: !error,
         error: error ? error.message : null,
@@ -42,8 +43,82 @@ export default function DebugPage() {
     }
   };
 
+  const checkSupabaseEnv = () => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    setSupabaseEnv({
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ? 'Set' : 'Not set',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey ? 'Set' : 'Not set',
+      url_length: supabaseUrl?.length || 0,
+      key_length: supabaseAnonKey?.length || 0
+    });
+  };
+
+  const forceSignOut = async () => {
+    try {
+      // Clear local storage
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+
+      // Sign out from Supabase
+      await signOut();
+
+      // Force reload
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error in force sign out:', error);
+    }
+  };
+
+  const testCreateUser = async () => {
+    try {
+      setIsLoading(true);
+
+      // Generate a test user
+      const testId = 'test-' + Date.now();
+      const testEmail = `test-${Date.now()}@example.com`;
+
+      // Try to create a user directly
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{
+          auth0_id: testId,
+          email: testEmail,
+          name: 'Test User'
+        }])
+        .select();
+
+      setTestResult({
+        operation: 'Create Test User',
+        success: !error,
+        data,
+        error: error ? error.message : null
+      });
+
+      // Clean up test user
+      if (!error && data) {
+        await supabase
+          .from('users')
+          .delete()
+          .eq('auth0_id', testId);
+      }
+    } catch (error) {
+      setTestResult({
+        operation: 'Create Test User',
+        success: false,
+        error: String(error)
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     checkDbConnection();
+    checkSupabaseEnv();
   }, []);
 
   return (
@@ -56,22 +131,48 @@ export default function DebugPage() {
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-8">Debug Page</h1>
-          
+
           <div className="mb-8 p-4 border rounded">
             <h2 className="text-xl font-bold mb-4">Authentication Status</h2>
             <div className="mb-4">
               <p><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</p>
               <p><strong>User ID:</strong> {userId || 'Not logged in'}</p>
               <p><strong>User Email:</strong> {user?.email || 'Not available'}</p>
+              <p><strong>Auth ID:</strong> {user?.id || 'Not available'}</p>
+              <p><strong>Last Updated:</strong> {new Date().toLocaleTimeString()}</p>
             </div>
-            <button 
-              onClick={refreshSession}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={refreshSession}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Refresh Session
+              </button>
+              <button
+                onClick={forceSignOut}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Force Sign Out
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-8 p-4 border rounded">
+            <h2 className="text-xl font-bold mb-4">Environment Variables</h2>
+            <div className="mb-4">
+              <p><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {supabaseEnv?.NEXT_PUBLIC_SUPABASE_URL || 'Checking...'}</p>
+              <p><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {supabaseEnv?.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'Checking...'}</p>
+              <p><strong>URL Length:</strong> {supabaseEnv?.url_length || 0} characters</p>
+              <p><strong>Key Length:</strong> {supabaseEnv?.key_length || 0} characters</p>
+            </div>
+            <button
+              onClick={checkSupabaseEnv}
+              className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
             >
-              Refresh Session
+              Refresh Environment Info
             </button>
           </div>
-          
+
           <div className="mb-8 p-4 border rounded">
             <h2 className="text-xl font-bold mb-4">Database Connection</h2>
             <div className="mb-4">
@@ -80,21 +181,30 @@ export default function DebugPage() {
                 <p className="text-red-500"><strong>Error:</strong> {dbStatus.error}</p>
               )}
             </div>
-            <button 
-              onClick={checkDbConnection}
-              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2"
-            >
-              Check Connection
-            </button>
-            <button 
-              onClick={testDatabase}
-              className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Testing...' : 'Run Database Test'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={checkDbConnection}
+                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Check Connection
+              </button>
+              <button
+                onClick={testDatabase}
+                className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Testing...' : 'Run Database Test'}
+              </button>
+              <button
+                onClick={testCreateUser}
+                className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+                disabled={isLoading}
+              >
+                Test User Creation
+              </button>
+            </div>
           </div>
-          
+
           {testResult && (
             <div className="p-4 border rounded">
               <h2 className="text-xl font-bold mb-4">Test Results</h2>

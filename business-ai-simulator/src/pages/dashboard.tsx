@@ -17,8 +17,10 @@ export default function Dashboard() {
     const fetchBusinesses = async () => {
       if (userId) {
         try {
+          console.log('Fetching businesses for user ID:', userId);
           setLoading(true);
           const businessesData = await getBusinesses(userId);
+          console.log('Fetched businesses:', businessesData);
           setBusinesses(businessesData);
         } catch (error) {
           console.error('Error fetching businesses:', error);
@@ -26,12 +28,16 @@ export default function Dashboard() {
           setLoading(false);
         }
       } else {
+        console.log('No userId available, skipping business fetch');
         setLoading(false);
       }
     };
 
-    fetchBusinesses();
-  }, [userId]);
+    // Only fetch businesses if we're not in the loading state
+    if (!loading) {
+      fetchBusinesses();
+    }
+  }, [userId, loading]);
 
   return (
     <ProtectedRoute>
