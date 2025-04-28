@@ -10,6 +10,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any, user?: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   resetPassword: async () => ({ error: null }),
+  refreshSession: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -185,6 +187,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Function to manually refresh the session
+  const refreshSession = async () => {
+    try {
+      console.log('Manually refreshing session...');
+
+      // Get current session
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('Error refreshing session:', error);
+        return;
+      }
+
+      console.log('Session refresh result:', session);
+
+      if (session?.user) {
+        // Set the user state
+        setUser(session.user);
+
+        // Get or create user in database
+        if (session.user.email) {
+          console.log('Getting or creating user in database with email:', session.user.email);
+          const dbUserId = await createUserIfNotExists(
+            session.user.id,
+            session.user.email,
+            session.user.user_metadata?.name,
+            session.user.user_metadata?.avatar_url
+          );
+
+          console.log('User ID from database after refresh:', dbUserId);
+          setUserId(dbUserId);
+        } else {
+          console.warn('User has no email in session:', session.user);
+        }
+      } else {
+        console.log('No active session found during refresh');
+        setUser(null);
+        setUserId(null);
+      }
+    } catch (error) {
+      console.error('Error in refreshSession:', error);
+    }
+  };
+
   const value = {
     user,
     userId,
@@ -193,6 +239,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     resetPassword,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
