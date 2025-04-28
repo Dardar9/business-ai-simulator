@@ -42,7 +42,7 @@ const businessTemplates: Record<string, BusinessTemplate> = {
 export default function CreateBusiness() {
   const router = useRouter();
   const { template: templateId } = router.query;
-  const { userId } = useAuth();
+  const { userId, refreshSession } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +82,25 @@ export default function CreateBusiness() {
     console.log('Current auth state:', { user: userId ? 'Logged in' : 'Not logged in', userId });
 
     if (!userId) {
-      console.warn('User is not logged in or userId is null');
-      setError('You must be logged in to create a business. Please sign in or refresh the page if you just signed up.');
-      return;
+      console.warn('User is not logged in or userId is null, trying to refresh session...');
+
+      try {
+        // Try to refresh the session before showing an error
+        await refreshSession();
+
+        // Check if we have a userId after refreshing
+        if (!userId) {
+          console.warn('Still not logged in after session refresh');
+          setError('You must be logged in to create a business. Please sign in or use the Refresh Session button below.');
+          return;
+        } else {
+          console.log('Session refreshed successfully, user is now logged in with ID:', userId);
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing session:', refreshError);
+        setError('You must be logged in to create a business. Please sign in or use the Refresh Session button below.');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -153,7 +169,31 @@ export default function CreateBusiness() {
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
+              <p className="mb-2">{error}</p>
+              {error.includes('logged in') && (
+                <button
+                  onClick={async () => {
+                    try {
+                      console.log('Manually refreshing session...');
+                      await refreshSession();
+                      console.log('Session refreshed, checking if user is logged in now...');
+                      if (userId) {
+                        console.log('User is now logged in with ID:', userId);
+                        setError(null);
+                      } else {
+                        console.log('User is still not logged in after refresh');
+                        setError('Still not logged in. Please try signing in again.');
+                      }
+                    } catch (e) {
+                      console.error('Error refreshing session:', e);
+                      setError('Error refreshing session. Please try signing in again.');
+                    }
+                  }}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm"
+                >
+                  Refresh Session
+                </button>
+              )}
             </div>
           )}
 
