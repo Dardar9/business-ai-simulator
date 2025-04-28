@@ -15,10 +15,10 @@ interface SimpleAgent {
 }
 
 // Function to convert SimpleAgent to SupabaseAgent
-const toSupabaseAgent = (agent: SimpleAgent, businessId: string): SupabaseAgent => {
+const toSupabaseAgent = (agent: SimpleAgent): SupabaseAgent => {
   return {
     id: agent.id,
-    business_id: businessId,
+    business_id: '', // This will be set by the createBusiness function
     name: agent.name,
     role: agent.role,
     description: agent.description,
@@ -142,8 +142,7 @@ const defaultAgentTemplates: Record<string, AgentTemplate> = {
 
 // Function to generate agents based on business type
 export const generateAgentsForBusiness = async (businessType: string, businessDescription: string): Promise<SupabaseAgent[]> => {
-  // Generate a business ID for the agents
-  const businessId = uuidv4();
+  // No need to generate a business ID here, it will be set by the createBusiness function
   try {
     // First, try to use OpenAI to generate appropriate agents
     const prompt = `
@@ -209,7 +208,7 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
         });
 
         // Convert SimpleAgent to SupabaseAgent
-        return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
+        return simpleAgents.map(agent => toSupabaseAgent(agent));
       }
     } catch (error) {
       console.error('Error generating agents with AI:', error);
@@ -267,7 +266,7 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
     }));
 
     // Convert SimpleAgent to SupabaseAgent
-    return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
+    return simpleAgents.map(agent => toSupabaseAgent(agent));
   } catch (error) {
     console.error('Error in generateAgentsForBusiness:', error);
 
@@ -288,7 +287,7 @@ Include at least 5 roles, but no more than 8 roles. Always include a CEO role.
     ];
 
     // Convert SimpleAgent to SupabaseAgent
-    return simpleAgents.map(agent => toSupabaseAgent(agent, businessId));
+    return simpleAgents.map(agent => toSupabaseAgent(agent));
   }
 };
 

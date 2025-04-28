@@ -88,13 +88,14 @@ export default function CreateBusiness() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted');
 
     if (!formData.name || !formData.type) {
       setError('Please fill in all required fields');
       return;
     }
 
-    console.log('Current auth state:', { user: userId ? 'Logged in' : 'Not logged in', userId });
+    console.log('Current auth state:', { user: user ? 'User exists' : 'No user', userId: userId || 'No userId' });
 
     if (!userId) {
       console.warn('User is not logged in or userId is null, trying to refresh session...');
@@ -116,6 +117,13 @@ export default function CreateBusiness() {
         setError('You must be logged in to create a business. Please sign in or use the Refresh Session button below.');
         return;
       }
+    }
+
+    // Double-check userId one more time
+    if (!userId) {
+      console.error('User ID is still null after all checks');
+      setError('Unable to create business: User ID is not available. Please try logging out and logging in again.');
+      return;
     }
 
     setIsLoading(true);
@@ -144,12 +152,17 @@ export default function CreateBusiness() {
       const newBusiness = await createBusiness(businessData, agents);
       console.log('Business creation result:', newBusiness);
 
-      if (newBusiness) {
-        console.log('Business created successfully, redirecting to detail page...');
-        // Redirect to the business detail page
-        router.push(`/businesses/${newBusiness.id}`);
+      if (newBusiness && newBusiness.id) {
+        console.log('Business created successfully with ID:', newBusiness.id);
+
+        // Add a small delay before redirecting
+        setTimeout(() => {
+          console.log('Redirecting to business detail page...');
+          // Use window.location for a hard redirect instead of router.push
+          window.location.href = `/businesses/${newBusiness.id}`;
+        }, 500);
       } else {
-        console.error('Failed to create business, no business returned');
+        console.error('Failed to create business, no business returned or no ID');
         setError('Failed to create business. Please try again.');
       }
     } catch (error: any) {

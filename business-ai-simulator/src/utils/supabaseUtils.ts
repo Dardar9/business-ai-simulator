@@ -1,5 +1,4 @@
 import { supabase, Business, Agent } from './supabaseClient';
-import { v4 as uuidv4 } from 'uuid';
 
 // Business CRUD operations
 export const getBusinesses = async (userId: string): Promise<Business[]> => {
@@ -91,6 +90,8 @@ export const createBusiness = async (
 
     // Create agents for the business
     if (agents && agents.length > 0) {
+      console.log('Processing agents for business ID:', newBusiness.id);
+
       // Make sure all required fields are present and properly formatted
       const agentsWithBusinessId = agents.map(agent => {
         // Ensure skills is properly formatted for Supabase
@@ -106,13 +107,15 @@ export const createBusiness = async (
           }
         }
 
+        // Create a new object with all required fields
         return {
+          // Let Supabase generate the ID
           name: agent.name,
           role: agent.role,
           description: agent.description || '',
           skills: formattedSkills,
           avatar: agent.avatar || '',
-          business_id: newBusiness.id
+          business_id: newBusiness.id // Set the business_id to the newly created business
         };
       });
 
