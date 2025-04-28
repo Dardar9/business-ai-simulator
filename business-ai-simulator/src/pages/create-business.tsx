@@ -383,86 +383,156 @@ export default function CreateBusiness() {
                   </button>
                 </div>
 
-                {/* Debug button */}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsLoading(true);
-                    setError(null);
+                {/* Debug buttons */}
+                <div className="flex flex-col space-y-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      setError(null);
 
-                    try {
-                      // Try to get userId from localStorage if it's not in the context
-                      let effectiveUserId = userId;
-                      if (!effectiveUserId && typeof window !== 'undefined') {
-                        const tempUserId = window.localStorage.getItem('temp_user_id');
-                        if (tempUserId) {
-                          console.log('Using userId from localStorage:', tempUserId);
-                          effectiveUserId = tempUserId;
-                        }
-                      }
-
-                      if (!effectiveUserId) {
-                        // Try to get userId from API
-                        console.log('No userId available, trying API endpoint');
-                        const userResponse = await fetch('/api/auth/user');
-                        const userData = await userResponse.json();
-
-                        if (userData.status === 'success' && userData.userId) {
-                          console.log('Got userId from API:', userData.userId);
-                          effectiveUserId = userData.userId;
-                        }
-                      }
-
-                      if (!effectiveUserId) {
-                        setError('No user ID available. Please log in again.');
-                        return;
-                      }
-
-                      console.log('Using user ID for debug create:', effectiveUserId);
-
-                      // Call the debug API endpoint
-                      const response = await fetch('/api/debug/create-business', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          userId: effectiveUserId,
-                          businessData: {
-                            name: formData.name || 'Debug Business',
-                            type: formData.type || 'Debug Type',
-                            description: formData.description || 'Debug Description'
+                      try {
+                        // Try to get userId from localStorage if it's not in the context
+                        let effectiveUserId = userId;
+                        if (!effectiveUserId && typeof window !== 'undefined') {
+                          const tempUserId = window.localStorage.getItem('temp_user_id');
+                          if (tempUserId) {
+                            console.log('Using userId from localStorage:', tempUserId);
+                            effectiveUserId = tempUserId;
                           }
-                        }),
-                      });
+                        }
 
-                      const data = await response.json();
-                      console.log('Debug create business response:', data);
+                        if (!effectiveUserId) {
+                          // Try to get userId from API
+                          console.log('No userId available, trying API endpoint');
+                          const userResponse = await fetch('/api/auth/user');
+                          const userData = await userResponse.json();
 
-                      if (data.status === 'success' && data.business) {
-                        console.log('Debug business created successfully:', data.business);
-                        setError(`Debug business created successfully with ID: ${data.business.id}`);
+                          if (userData.status === 'success' && userData.userId) {
+                            console.log('Got userId from API:', userData.userId);
+                            effectiveUserId = userData.userId;
+                          }
+                        }
 
-                        // Redirect to the business detail page after a delay
-                        setTimeout(() => {
-                          window.location.href = `/businesses/${data.business.id}`;
-                        }, 2000);
-                      } else {
-                        console.error('Error creating debug business:', data);
-                        setError(`Error creating debug business: ${data.message || 'Unknown error'}`);
+                        if (!effectiveUserId) {
+                          // Try to create a user directly
+                          console.log('No userId available, creating a user directly');
+                          const createUserResponse = await fetch('/api/auth/create-user', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              email: 'test@example.com',
+                              name: 'Test User'
+                            }),
+                          });
+
+                          const createUserData = await createUserResponse.json();
+                          console.log('Create user response:', createUserData);
+
+                          if (createUserData.status === 'success' && createUserData.userId) {
+                            console.log('Created user with ID:', createUserData.userId);
+                            effectiveUserId = createUserData.userId;
+
+                            // Store the user ID in localStorage
+                            if (typeof window !== 'undefined') {
+                              window.localStorage.setItem('temp_user_id', effectiveUserId);
+                            }
+                          } else {
+                            setError('Failed to create user. Please try again.');
+                            return;
+                          }
+                        }
+
+                        console.log('Using user ID for debug create:', effectiveUserId);
+
+                        // Call the debug API endpoint
+                        const response = await fetch('/api/debug/create-business', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            userId: effectiveUserId,
+                            businessData: {
+                              name: formData.name || 'Debug Business',
+                              type: formData.type || 'Debug Type',
+                              description: formData.description || 'Debug Description'
+                            }
+                          }),
+                        });
+
+                        const data = await response.json();
+                        console.log('Debug create business response:', data);
+
+                        if (data.status === 'success' && data.business) {
+                          console.log('Debug business created successfully:', data.business);
+                          setError(`Debug business created successfully with ID: ${data.business.id}`);
+
+                          // Redirect to the business detail page after a delay
+                          setTimeout(() => {
+                            window.location.href = `/businesses/${data.business.id}`;
+                          }, 2000);
+                        } else {
+                          console.error('Error creating debug business:', data);
+                          setError(`Error creating debug business: ${data.message || 'Unknown error'}`);
+                        }
+                      } catch (error) {
+                        console.error('Error in debug create business:', error);
+                        setError(`Error in debug create business: ${error instanceof Error ? error.message : String(error)}`);
+                      } finally {
+                        setIsLoading(false);
                       }
-                    } catch (error) {
-                      console.error('Error in debug create business:', error);
-                      setError(`Error in debug create business: ${error instanceof Error ? error.message : String(error)}`);
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                  disabled={isLoading}
-                >
-                  Debug Create Business
-                </button>
+                    }}
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    disabled={isLoading}
+                  >
+                    Debug Create Business
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        // Create a user directly
+                        const createUserResponse = await fetch('/api/auth/create-user', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            email: 'test@example.com',
+                            name: 'Test User'
+                          }),
+                        });
+
+                        const createUserData = await createUserResponse.json();
+                        console.log('Create user response:', createUserData);
+
+                        if (createUserData.status === 'success' && createUserData.userId) {
+                          console.log('Created user with ID:', createUserData.userId);
+
+                          // Store the user ID in localStorage
+                          if (typeof window !== 'undefined') {
+                            window.localStorage.setItem('temp_user_id', createUserData.userId);
+                          }
+
+                          setError(`Created test user with ID: ${createUserData.userId}. Try creating a business now.`);
+                        } else {
+                          setError(`Failed to create test user: ${createUserData.message || 'Unknown error'}`);
+                        }
+                      } catch (error) {
+                        console.error('Error creating test user:', error);
+                        setError(`Error creating test user: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    disabled={isLoading}
+                  >
+                    Create Test User
+                  </button>
+                </div>
               </form>
             </div>
           </div>

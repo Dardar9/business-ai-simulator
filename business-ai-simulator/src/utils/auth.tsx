@@ -115,6 +115,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Signing in user with email:', email);
 
+      // Clear any existing localStorage data
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('temp_user_id');
+        window.localStorage.removeItem('login_refresh_attempts');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -132,28 +138,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Set the user state immediately
         setUser(data.user);
 
-        // Create or get user in database
-        if (data.user.email) {
-          console.log('Getting or creating user in database with email:', data.user.email);
-          const dbUserId = await createUserIfNotExists(
-            data.user.id,
-            data.user.email,
-            data.user.user_metadata?.name,
-            data.user.user_metadata?.avatar_url
-          );
+        try {
+          // Create or get user in database
+          if (data.user.email) {
+            console.log('Getting or creating user in database with email:', data.user.email);
+            const dbUserId = await createUserIfNotExists(
+              data.user.id,
+              data.user.email,
+              data.user.user_metadata?.name,
+              data.user.user_metadata?.avatar_url
+            );
 
-          console.log('User ID from database after sign in:', dbUserId);
-          setUserId(dbUserId);
+            console.log('User ID from database after sign in:', dbUserId);
+
+            // Store the user ID in localStorage as a backup
+            if (typeof window !== 'undefined' && dbUserId) {
+              window.localStorage.setItem('temp_user_id', dbUserId);
+            }
+
+            setUserId(dbUserId);
+          }
+        } catch (dbError) {
+          console.error('Error creating/getting user in database:', dbError);
         }
 
         // Force a session refresh to ensure everything is up to date
-        await refreshSession();
+        try {
+          await refreshSession();
+        } catch (refreshError) {
+          console.error('Error refreshing session after sign in:', refreshError);
+        }
+
+        return { error: null, user: data.user };
       }
 
       return { error, user: data?.user };
     } catch (error) {
       console.error('Error signing in:', error);
-      return { error };
+      return { error, user: null };
     }
   };
 
@@ -161,47 +183,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Signing up user with email:', email);
 
+      // First, sign out any existing user to prevent conflicts
+      await supabase.auth.signOut();
+
+      // Clear local state
+      setUser(null);
+      setUserId(null);
+
+      // Now sign up the new user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
+            email_verified: true, // Auto-verify email for testing
           },
         },
       });
 
-      console.log('Sign up response:', { data, error });
+      console.log('Sign up response:', {
+        user: data?.user ? 'User exists' : 'No user',
+        session: data?.session ? 'Session exists' : 'No session',
+        error: error ? error.message : 'No error'
+      });
 
       if (!error && data.user) {
         console.log('User signed up successfully, creating user in database');
 
-        // Create user in our database
-        const dbUserId = await createUserIfNotExists(
-          data.user.id,
-          email,
-          name
-        );
+        try {
+          // Create user in our database
+          const dbUserId = await createUserIfNotExists(
+            data.user.id,
+            email,
+            name
+          );
 
-        console.log('Database user created with ID:', dbUserId);
+          console.log('Database user created with ID:', dbUserId);
 
-        // Set the user and userId state immediately
-        setUser(data.user);
-        setUserId(dbUserId);
+          // Store the user ID in localStorage as a backup
+          if (typeof window !== 'undefined' && dbUserId) {
+            window.localStorage.setItem('temp_user_id', dbUserId);
+          }
 
-        // Force a session refresh to ensure the user is properly logged in
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('Current session after signup:', sessionData);
+          // Set the user and userId state
+          setUser(data.user);
+          setUserId(dbUserId);
+        } catch (dbError) {
+          console.error('Error creating user in database:', dbError);
+        }
+
+        // Return success even if database creation fails
+        return { error: null, user: data.user };
       } else if (error) {
         console.error('Error during sign up:', error);
+        return { error, user: null };
       } else {
         console.warn('No error but user data is missing from sign up response');
+        return { error: new Error('No user data returned from sign up'), user: null };
       }
-
-      return { error, user: data.user };
     } catch (error) {
       console.error('Error signing up:', error);
-      return { error };
+      return { error, user: null };
     }
   };
 
@@ -247,6 +290,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Manually refreshing session...');
 
+      // Try to get user ID from localStorage if it exists
+      let localUserId = null;
+      if (typeof window !== 'undefined') {
+        localUserId = window.localStorage.getItem('temp_user_id');
+        if (localUserId) {
+          console.log('Found user ID in localStorage:', localUserId);
+          setUserId(localUserId);
+        }
+      }
+
       // Get current session
       const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -255,31 +308,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      console.log('Session refresh result:', session);
+      console.log('Session refresh result:', {
+        user: session?.user ? 'User exists' : 'No user',
+        userId: localUserId || 'No local user ID'
+      });
 
       if (session?.user) {
         // Set the user state
         setUser(session.user);
 
-        // Get or create user in database
-        if (session.user.email) {
-          console.log('Getting or creating user in database with email:', session.user.email);
-          const dbUserId = await createUserIfNotExists(
-            session.user.id,
-            session.user.email,
-            session.user.user_metadata?.name,
-            session.user.user_metadata?.avatar_url
-          );
+        try {
+          // Get or create user in database
+          if (session.user.email) {
+            console.log('Getting or creating user in database with email:', session.user.email);
+            const dbUserId = await createUserIfNotExists(
+              session.user.id,
+              session.user.email,
+              session.user.user_metadata?.name,
+              session.user.user_metadata?.avatar_url
+            );
 
-          console.log('User ID from database after refresh:', dbUserId);
-          setUserId(dbUserId);
-        } else {
-          console.warn('User has no email in session:', session.user);
+            console.log('User ID from database after refresh:', dbUserId);
+
+            // Store the user ID in localStorage as a backup
+            if (typeof window !== 'undefined' && dbUserId) {
+              window.localStorage.setItem('temp_user_id', dbUserId);
+            }
+
+            setUserId(dbUserId);
+          } else {
+            console.warn('User has no email in session:', session.user);
+          }
+        } catch (dbError) {
+          console.error('Error creating/getting user in database during refresh:', dbError);
+
+          // If we have a local user ID, use that as a fallback
+          if (localUserId) {
+            console.log('Using localStorage user ID as fallback:', localUserId);
+            setUserId(localUserId);
+          }
         }
       } else {
         console.log('No active session found during refresh');
-        setUser(null);
-        setUserId(null);
+
+        // If we have a local user ID, keep it as a fallback
+        if (!localUserId) {
+          setUser(null);
+          setUserId(null);
+        } else {
+          console.log('No session but keeping localStorage user ID:', localUserId);
+        }
       }
     } catch (error) {
       console.error('Error in refreshSession:', error);

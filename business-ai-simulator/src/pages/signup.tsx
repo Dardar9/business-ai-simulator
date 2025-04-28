@@ -38,28 +38,32 @@ export default function Signup() {
     }
 
     try {
+      console.log('Attempting to sign up with email:', email);
       const { error, user } = await signUp(email, password, name);
-      
+
       if (error) {
-        setError(error.message);
+        console.error('Sign up error:', error);
+        setError(error.message || 'Failed to create account. Please try again.');
       } else {
+        console.log('Sign up successful, user:', user);
         setSuccess('Account created successfully! Please check your email to confirm your account.');
+
         // Clear form
         setName('');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
-        
-        // Redirect to dashboard if auto-confirmed
-        if (user && !user.identities?.[0].identity_data?.email_verified) {
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 2000);
-        }
+
+        // Use a hard redirect to the login page
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+
+        return; // Exit early to prevent setLoading(false)
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
       console.error('Signup error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,19 +81,19 @@ export default function Signup() {
           <div className="w-full max-w-md">
             <div className="card">
               <h1 className="text-2xl font-bold mb-6 text-center">Create an Account</h1>
-              
+
               {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                   {error}
                 </div>
               )}
-              
+
               {success && (
                 <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
                   {success}
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium mb-1">
@@ -104,7 +108,7 @@ export default function Signup() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium mb-1">
                     Email
@@ -118,7 +122,7 @@ export default function Signup() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium mb-1">
                     Password
@@ -136,7 +140,7 @@ export default function Signup() {
                     Password must be at least 6 characters long
                   </p>
                 </div>
-                
+
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1">
                     Confirm Password
@@ -150,7 +154,7 @@ export default function Signup() {
                     required
                   />
                 </div>
-                
+
                 <button
                   type="submit"
                   className="w-full btn-primary"
@@ -159,7 +163,7 @@ export default function Signup() {
                   {loading ? 'Creating account...' : 'Sign Up'}
                 </button>
               </form>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Already have an account?{' '}
