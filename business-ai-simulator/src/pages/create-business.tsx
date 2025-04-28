@@ -42,16 +42,31 @@ const businessTemplates: Record<string, BusinessTemplate> = {
 export default function CreateBusiness() {
   const router = useRouter();
   const { template: templateId } = router.query;
-  const { userId, refreshSession } = useAuth();
+  const { user, userId, refreshSession, loading: authLoading } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     type: '',
     description: '',
   });
 
+  // Check session when component mounts
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!userId && !authLoading && !sessionChecked) {
+        console.log('No userId available, trying to refresh session on mount');
+        await refreshSession();
+        setSessionChecked(true);
+      }
+    };
+
+    checkSession();
+  }, [userId, authLoading, sessionChecked, refreshSession]);
+
+  // Load template data if a template ID is provided
   useEffect(() => {
     if (templateId && typeof templateId === 'string' && businessTemplates[templateId]) {
       const template = businessTemplates[templateId];

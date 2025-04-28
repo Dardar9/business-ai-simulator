@@ -113,8 +113,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error };
+      console.log('Signing in user with email:', email);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      console.log('Sign in response:', {
+        user: data?.user ? 'User exists' : 'No user',
+        session: data?.session ? 'Session exists' : 'No session',
+        error: error ? error.message : 'No error'
+      });
+
+      if (!error && data.user) {
+        console.log('User signed in successfully, updating state');
+
+        // Set the user state immediately
+        setUser(data.user);
+
+        // Create or get user in database
+        if (data.user.email) {
+          console.log('Getting or creating user in database with email:', data.user.email);
+          const dbUserId = await createUserIfNotExists(
+            data.user.id,
+            data.user.email,
+            data.user.user_metadata?.name,
+            data.user.user_metadata?.avatar_url
+          );
+
+          console.log('User ID from database after sign in:', dbUserId);
+          setUserId(dbUserId);
+        }
+
+        // Force a session refresh to ensure everything is up to date
+        await refreshSession();
+      }
+
+      return { error, user: data?.user };
     } catch (error) {
       console.error('Error signing in:', error);
       return { error };

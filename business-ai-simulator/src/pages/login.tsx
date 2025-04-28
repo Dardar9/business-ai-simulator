@@ -11,29 +11,56 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { signIn, user } = useAuth();
+  const { signIn, user, loading: authLoading, refreshSession } = useAuth();
   const router = useRouter();
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
   useEffect(() => {
     // Redirect to dashboard if already logged in
     if (user) {
+      console.log('User is logged in, redirecting to dashboard');
       router.push('/dashboard');
     }
   }, [user, router]);
+
+  // Add a second useEffect to handle login attempts
+  useEffect(() => {
+    if (loginAttempted && !loading && !authLoading && !user) {
+      console.log('Login attempted but user is still not logged in, refreshing session');
+      const checkSession = async () => {
+        await refreshSession();
+      };
+      checkSession();
+    }
+  }, [loginAttempted, loading, authLoading, user, refreshSession]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setLoginAttempted(true);
 
     try {
-      const { error } = await signIn(email, password);
-      
+      console.log('Attempting to sign in with email:', email);
+      const { error, user: signedInUser } = await signIn(email, password);
+
       if (error) {
-        setError(error.message);
+        console.error('Sign in error:', error);
+        setError(error.message || 'Failed to sign in. Please check your credentials.');
+      } else if (signedInUser) {
+        console.log('Sign in successful, user:', signedInUser);
+
+        // Add a small delay to allow state to update
+        setTimeout(() => {
+          // Redirect to dashboard on successful login
+          router.push('/dashboard');
+        }, 500);
       } else {
-        // Redirect to dashboard on successful login
-        router.push('/dashboard');
+        console.warn('No error but no user returned from sign in');
+        setError('Failed to sign in. Please try again.');
+
+        // Try refreshing the session
+        await refreshSession();
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -55,13 +82,35 @@ export default function Login() {
           <div className="w-full max-w-md">
             <div className="card">
               <h1 className="text-2xl font-bold mb-6 text-center">Log In</h1>
-              
+
               {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                  {error}
+                  <p className="mb-2">{error}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('Manually refreshing session...');
+                        await refreshSession();
+                        console.log('Session refreshed, checking if user is logged in now...');
+                        if (user) {
+                          console.log('User is now logged in, redirecting to dashboard');
+                          router.push('/dashboard');
+                        } else {
+                          console.log('User is still not logged in after refresh');
+                          setError('Still not logged in after refresh. Please try again with correct credentials.');
+                        }
+                      } catch (e) {
+                        console.error('Error refreshing session:', e);
+                        setError('Error refreshing session. Please try again.');
+                      }
+                    }}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm"
+                  >
+                    Refresh Session
+                  </button>
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium mb-1">
@@ -76,7 +125,7 @@ export default function Login() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium mb-1">
                     Password
@@ -90,13 +139,13 @@ export default function Login() {
                     required
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <Link href="/forgot-password" className="text-sm text-primary-600 hover:underline">
                     Forgot password?
                   </Link>
                 </div>
-                
+
                 <button
                   type="submit"
                   className="w-full btn-primary"
@@ -105,7 +154,7 @@ export default function Login() {
                   {loading ? 'Logging in...' : 'Log In'}
                 </button>
               </form>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Don't have an account?{' '}
@@ -113,6 +162,11 @@ export default function Login() {
                     Sign up
                   </Link>
                 </p>
+                <div className="mt-4">
+                  <Link href="/debug" className="text-xs text-gray-500 hover:underline">
+                    Debug Tools
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
