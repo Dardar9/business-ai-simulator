@@ -18,8 +18,8 @@ export default async function handler(
 
     // Test database connection
     let dbStatus = 'Unknown';
-    let error = null;
-    let tables = [];
+    let error: any = null;
+    let tables: any[] = [];
 
     try {
       // Try to query the users table
@@ -35,13 +35,35 @@ export default async function handler(
         dbStatus = 'Connected';
       }
 
-      // Get list of tables
-      const { data: tableData } = await supabase
-        .from('pg_tables')
-        .select('tablename')
-        .eq('schemaname', 'public');
+      // Try to get users table info as a simple test
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
 
-      tables = tableData || [];
+      if (!usersError) {
+        tables.push({ name: 'users', accessible: true });
+      }
+
+      // Try to get businesses table info
+      const { data: businessesData, error: businessesError } = await supabase
+        .from('businesses')
+        .select('count')
+        .limit(1);
+
+      if (!businessesError) {
+        tables.push({ name: 'businesses', accessible: true });
+      }
+
+      // Try to get agents table info
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('count')
+        .limit(1);
+
+      if (!agentsError) {
+        tables.push({ name: 'agents', accessible: true });
+      }
     } catch (e) {
       dbStatus = 'Error';
       error = e;

@@ -18,8 +18,8 @@ export default async function handler(
     // Test database connection
     let dbStatus = 'Unknown';
     let error = null;
-    let tables = [];
-    let tableData = null;
+    let tables: any[] = [];
+    let tableData: any = null;
 
     try {
       // Try to create a test user
@@ -51,13 +51,15 @@ export default async function handler(
         }
       }
 
-      // Get list of tables
-      const { data: tablesData } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public');
+      // Get list of tables - using a raw query since information_schema is not directly accessible
+      const { data: tablesData, error: tablesError } = await supabase
+        .rpc('get_tables');
 
-      tables = tablesData || [];
+      if (tablesError) {
+        console.error('Error getting tables:', tablesError);
+      } else {
+        tables = tablesData || [];
+      }
     } catch (e) {
       dbStatus = 'Error';
       error = e;
