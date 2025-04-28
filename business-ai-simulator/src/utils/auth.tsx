@@ -6,7 +6,7 @@ interface AuthContextType {
   user: any | null;
   userId: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any, user?: any }>;
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any, user?: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -17,8 +17,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userId: null,
   loading: true,
-  signIn: async () => ({ error: null }),
-  signUp: async () => ({ error: null }),
+  signIn: async () => ({ error: null, user: null }),
+  signUp: async () => ({ error: null, user: null }),
   signOut: async () => {},
   resetPassword: async () => ({ error: null }),
   refreshSession: async () => {},
