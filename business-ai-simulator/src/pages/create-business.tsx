@@ -58,7 +58,29 @@ export default function CreateBusiness() {
     const checkSession = async () => {
       if (!userId && !authLoading && !sessionChecked) {
         console.log('No userId available, trying to refresh session on mount');
-        await refreshSession();
+
+        try {
+          // First try refreshing the session through the context
+          await refreshSession();
+
+          // If that doesn't work, try the API endpoint
+          if (!userId) {
+            console.log('Still no userId after refresh, trying API endpoint');
+            const response = await fetch('/api/auth/user');
+            const data = await response.json();
+
+            console.log('API auth check response:', data);
+
+            if (data.status === 'success' && data.userId) {
+              console.log('Got userId from API:', data.userId);
+              // We can't update the context's userId directly, but we can store it locally
+              window.localStorage.setItem('temp_user_id', data.userId);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking session:', error);
+        }
+
         setSessionChecked(true);
       }
     };
@@ -95,22 +117,53 @@ export default function CreateBusiness() {
       return;
     }
 
-    console.log('Current auth state:', { user: user ? 'User exists' : 'No user', userId: userId || 'No userId' });
+    // Try to get userId from localStorage if it's not in the context
+    let effectiveUserId = userId;
+    if (!effectiveUserId && typeof window !== 'undefined') {
+      const tempUserId = window.localStorage.getItem('temp_user_id');
+      if (tempUserId) {
+        console.log('Using userId from localStorage:', tempUserId);
+        effectiveUserId = tempUserId;
+      }
+    }
 
-    if (!userId) {
-      console.warn('User is not logged in or userId is null, trying to refresh session...');
+    console.log('Current auth state:', {
+      user: user ? 'User exists' : 'No user',
+      contextUserId: userId || 'No userId in context',
+      effectiveUserId: effectiveUserId || 'No effective userId'
+    });
+
+    if (!effectiveUserId) {
+      console.warn('No effective userId available, trying to refresh session and check API...');
 
       try {
-        // Try to refresh the session before showing an error
+        // Try to refresh the session
         await refreshSession();
 
-        // Check if we have a userId after refreshing
+        // If that doesn't work, try the API endpoint
         if (!userId) {
-          console.warn('Still not logged in after session refresh');
+          console.log('Still no userId after refresh, trying API endpoint');
+          const response = await fetch('/api/auth/user');
+          const data = await response.json();
+
+          console.log('API auth check response:', data);
+
+          if (data.status === 'success' && data.userId) {
+            console.log('Got userId from API:', data.userId);
+            effectiveUserId = data.userId;
+            window.localStorage.setItem('temp_user_id', data.userId);
+          }
+        } else {
+          effectiveUserId = userId;
+        }
+
+        // Check if we have a userId after all attempts
+        if (!effectiveUserId) {
+          console.warn('Still no effective userId after all attempts');
           setError('You must be logged in to create a business. Please sign in or use the Refresh Session button below.');
           return;
         } else {
-          console.log('Session refreshed successfully, user is now logged in with ID:', userId);
+          console.log('Successfully obtained userId:', effectiveUserId);
         }
       } catch (refreshError) {
         console.error('Error refreshing session:', refreshError);
@@ -119,9 +172,9 @@ export default function CreateBusiness() {
       }
     }
 
-    // Double-check userId one more time
-    if (!userId) {
-      console.error('User ID is still null after all checks');
+    // Double-check effectiveUserId one more time
+    if (!effectiveUserId) {
+      console.error('Effective User ID is still null after all checks');
       setError('Unable to create business: User ID is not available. Please try logging out and logging in again.');
       return;
     }
@@ -142,7 +195,7 @@ export default function CreateBusiness() {
       // Create the business in Supabase
       console.log('Creating business in Supabase...');
       const businessData = {
-        user_id: userId,
+        user_id: effectiveUserId, // Use the effective user ID
         name: formData.name,
         type: formData.type,
         description: formData.description
@@ -198,30 +251,58 @@ export default function CreateBusiness() {
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
               <p className="mb-2">{error}</p>
-              {error.includes('logged in') && (
+              <div className="flex space-x-2">
+                {error.includes('logged in') && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('Manually refreshing session...');
+                        await refreshSession();
+                        console.log('Session refreshed, checking if user is logged in now...');
+                        if (userId) {
+                          console.log('User is now logged in with ID:', userId);
+                          setError(null);
+                        } else {
+                          console.log('User is still not logged in after refresh');
+                          setError('Still not logged in. Please try signing in again.');
+                        }
+                      } catch (e) {
+                        console.error('Error refreshing session:', e);
+                        setError('Error refreshing session. Please try signing in again.');
+                      }
+                    }}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm"
+                  >
+                    Refresh Session
+                  </button>
+                )}
                 <button
                   onClick={async () => {
                     try {
-                      console.log('Manually refreshing session...');
-                      await refreshSession();
-                      console.log('Session refreshed, checking if user is logged in now...');
-                      if (userId) {
-                        console.log('User is now logged in with ID:', userId);
-                        setError(null);
+                      console.log('Getting user ID from API...');
+                      const response = await fetch('/api/auth/user');
+                      const data = await response.json();
+
+                      console.log('API response:', data);
+
+                      if (data.status === 'success' && data.userId) {
+                        console.log('Got user ID from API:', data.userId);
+                        window.localStorage.setItem('temp_user_id', data.userId);
+                        setError(`User ID found: ${data.userId}. Try submitting the form again.`);
                       } else {
-                        console.log('User is still not logged in after refresh');
-                        setError('Still not logged in. Please try signing in again.');
+                        console.log('No user ID found in API response');
+                        setError('No user ID found. Please try logging in again.');
                       }
                     } catch (e) {
-                      console.error('Error refreshing session:', e);
-                      setError('Error refreshing session. Please try signing in again.');
+                      console.error('Error getting user ID:', e);
+                      setError('Error getting user ID. Please try logging in again.');
                     }
                   }}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm"
+                  className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-sm"
                 >
-                  Refresh Session
+                  Get User ID
                 </button>
-              )}
+              </div>
             </div>
           )}
 
