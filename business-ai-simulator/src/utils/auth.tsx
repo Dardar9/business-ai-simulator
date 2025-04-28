@@ -37,25 +37,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check for active session on component mount
     const checkSession = async () => {
       try {
+        console.log('Checking for active session...');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.error('Error checking session:', error);
           setUser(null);
           setUserId(null);
         } else if (session?.user) {
+          console.log('Session found, user is logged in:', session.user);
           setUser(session.user);
-          
+
           // Create or get user in our database
           if (session.user.email) {
+            console.log('Creating or getting user in database with email:', session.user.email);
             const dbUserId = await createUserIfNotExists(
               session.user.id,
               session.user.email,
               session.user.user_metadata?.name,
               session.user.user_metadata?.avatar_url
             );
+            console.log('User ID from database:', dbUserId);
             setUserId(dbUserId);
+          } else {
+            console.warn('User has no email in session:', session.user);
           }
+        } else {
+          console.log('No active session found, user is not logged in');
         }
       } catch (error) {
         console.error('Error in checkSession:', error);
@@ -68,20 +76,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed, event:', event);
+
       if (session?.user) {
+        console.log('User is now logged in:', session.user);
         setUser(session.user);
-        
+
         // Create or get user in our database
         if (session.user.email) {
+          console.log('Creating or getting user in database with email:', session.user.email);
           const dbUserId = await createUserIfNotExists(
             session.user.id,
             session.user.email,
             session.user.user_metadata?.name,
             session.user.user_metadata?.avatar_url
           );
+          console.log('User ID from database:', dbUserId);
           setUserId(dbUserId);
+        } else {
+          console.warn('User has no email in session:', session.user);
         }
       } else {
+        console.log('User is now logged out');
         setUser(null);
         setUserId(null);
       }
@@ -105,6 +121,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string, name?: string) => {
     try {
+      console.log('Signing up user with email:', email);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -114,16 +132,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
         },
       });
-      
+
+      console.log('Sign up response:', { data, error });
+
       if (!error && data.user) {
+        console.log('User signed up successfully, creating user in database');
+
         // Create user in our database
-        await createUserIfNotExists(
+        const dbUserId = await createUserIfNotExists(
           data.user.id,
           email,
           name
         );
+
+        console.log('Database user created with ID:', dbUserId);
+
+        // Set the user and userId state immediately
+        setUser(data.user);
+        setUserId(dbUserId);
+
+        // Force a session refresh to ensure the user is properly logged in
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('Current session after signup:', sessionData);
+      } else if (error) {
+        console.error('Error during sign up:', error);
+      } else {
+        console.warn('No error but user data is missing from sign up response');
       }
-      
+
       return { error, user: data.user };
     } catch (error) {
       console.error('Error signing up:', error);

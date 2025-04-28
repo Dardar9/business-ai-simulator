@@ -79,8 +79,11 @@ export default function CreateBusiness() {
       return;
     }
 
+    console.log('Current auth state:', { user: userId ? 'Logged in' : 'Not logged in', userId });
+
     if (!userId) {
-      setError('You must be logged in to create a business');
+      console.warn('User is not logged in or userId is null');
+      setError('You must be logged in to create a business. Please sign in or refresh the page if you just signed up.');
       return;
     }
 
@@ -99,15 +102,15 @@ export default function CreateBusiness() {
 
       // Create the business in Supabase
       console.log('Creating business in Supabase...');
-      const newBusiness = await createBusiness(
-        {
-          user_id: userId,
-          name: formData.name,
-          type: formData.type,
-          description: formData.description
-        },
-        agents
-      );
+      const businessData = {
+        user_id: userId,
+        name: formData.name,
+        type: formData.type,
+        description: formData.description
+      };
+      console.log('Business data to create:', businessData);
+
+      const newBusiness = await createBusiness(businessData, agents);
       console.log('Business creation result:', newBusiness);
 
       if (newBusiness) {

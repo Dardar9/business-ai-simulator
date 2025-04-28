@@ -239,39 +239,75 @@ export const createUserIfNotExists = async (
   avatarUrl?: string
 ): Promise<string | null> => {
   try {
+    console.log('createUserIfNotExists called with:', { auth0Id, email, name, avatarUrl });
+
     // Check if user exists
+    console.log('Checking if user exists in Supabase...');
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
       .eq('auth0_id', auth0Id)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('Error checking user existence:', checkError);
-      return null;
+    if (checkError) {
+      if (checkError.code === 'PGRST116') { // PGRST116 is "no rows returned"
+        console.log('User not found in database, will create new user');
+      } else {
+        console.error('Error checking user existence:', checkError);
+        return null;
+      }
     }
 
     if (existingUser) {
+      console.log('User already exists in database, returning existing ID:', existingUser.id);
       return existingUser.id;
     }
 
     // Create new user
+    console.log('Creating new user in Supabase...');
+    const newUserData = {
+      auth0_id: auth0Id,
+      email,
+      name,
+      avatar_url: avatarUrl
+    };
+    console.log('New user data:', newUserData);
+
     const { data: newUser, error: createError } = await supabase
       .from('users')
-      .insert([{
-        auth0_id: auth0Id,
-        email,
-        name,
-        avatar_url: avatarUrl
-      }])
+      .insert([newUserData])
       .select('id')
       .single();
 
     if (createError) {
       console.error('Error creating user:', createError);
+
+      // Check if it's a foreign key constraint error
+      if (createError.code === '23503') {
+        console.error('Foreign key constraint error. Make sure the auth0_id is valid.');
+      }
+
+      // Check if it's a unique constraint error
+      if (createError.code === '23505') {
+        console.error('Unique constraint error. User with this auth0_id or email might already exist.');
+
+        // Try to get the user again
+        const { data: retryUser } = await supabase
+          .from('users')
+          .select('id')
+          .or(`auth0_id.eq.${auth0Id},email.eq.${email}`)
+          .single();
+
+        if (retryUser) {
+          console.log('Found user on retry:', retryUser);
+          return retryUser.id;
+        }
+      }
+
       return null;
     }
 
+    console.log('User created successfully:', newUser);
     return newUser?.id || null;
   } catch (error) {
     console.error('Error in createUserIfNotExists:', error);
