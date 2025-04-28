@@ -436,7 +436,7 @@ export default function CreateBusiness() {
                             effectiveUserId = createUserData.userId;
 
                             // Store the user ID in localStorage
-                            if (typeof window !== 'undefined') {
+                            if (typeof window !== 'undefined' && effectiveUserId) {
                               window.localStorage.setItem('temp_user_id', effectiveUserId);
                             }
                           } else {
@@ -514,7 +514,7 @@ export default function CreateBusiness() {
                           console.log('Created user with ID:', createUserData.userId);
 
                           // Store the user ID in localStorage
-                          if (typeof window !== 'undefined') {
+                          if (typeof window !== 'undefined' && createUserData.userId) {
                             window.localStorage.setItem('temp_user_id', createUserData.userId);
                           }
 
