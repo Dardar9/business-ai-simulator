@@ -355,7 +355,7 @@ export default function CreateBusiness() {
                   />
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between mb-4">
                   <button
                     type="button"
                     onClick={() => router.back()}
@@ -382,6 +382,87 @@ export default function CreateBusiness() {
                     )}
                   </button>
                 </div>
+
+                {/* Debug button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsLoading(true);
+                    setError(null);
+
+                    try {
+                      // Try to get userId from localStorage if it's not in the context
+                      let effectiveUserId = userId;
+                      if (!effectiveUserId && typeof window !== 'undefined') {
+                        const tempUserId = window.localStorage.getItem('temp_user_id');
+                        if (tempUserId) {
+                          console.log('Using userId from localStorage:', tempUserId);
+                          effectiveUserId = tempUserId;
+                        }
+                      }
+
+                      if (!effectiveUserId) {
+                        // Try to get userId from API
+                        console.log('No userId available, trying API endpoint');
+                        const userResponse = await fetch('/api/auth/user');
+                        const userData = await userResponse.json();
+
+                        if (userData.status === 'success' && userData.userId) {
+                          console.log('Got userId from API:', userData.userId);
+                          effectiveUserId = userData.userId;
+                        }
+                      }
+
+                      if (!effectiveUserId) {
+                        setError('No user ID available. Please log in again.');
+                        return;
+                      }
+
+                      console.log('Using user ID for debug create:', effectiveUserId);
+
+                      // Call the debug API endpoint
+                      const response = await fetch('/api/debug/create-business', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          userId: effectiveUserId,
+                          businessData: {
+                            name: formData.name || 'Debug Business',
+                            type: formData.type || 'Debug Type',
+                            description: formData.description || 'Debug Description'
+                          }
+                        }),
+                      });
+
+                      const data = await response.json();
+                      console.log('Debug create business response:', data);
+
+                      if (data.status === 'success' && data.business) {
+                        console.log('Debug business created successfully:', data.business);
+                        setError(`Debug business created successfully with ID: ${data.business.id}`);
+
+                        // Redirect to the business detail page after a delay
+                        setTimeout(() => {
+                          window.location.href = `/businesses/${data.business.id}`;
+                        }, 2000);
+                      } else {
+                        console.error('Error creating debug business:', data);
+                        setError(`Error creating debug business: ${data.message || 'Unknown error'}`);
+                      }
+                    } catch (error) {
+                      console.error('Error in debug create business:', error);
+                      setError(`Error in debug create business: ${error instanceof Error ? error.message : String(error)}`);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={isLoading}
+                >
+                  Debug Create Business
+                </button>
               </form>
             </div>
           </div>

@@ -25,13 +25,34 @@ export default function Login() {
 
   // Add a second useEffect to handle login attempts
   useEffect(() => {
-    if (loginAttempted && !loading && !authLoading && !user) {
-      console.log('Login attempted but user is still not logged in, refreshing session');
+    // Track refresh attempts to prevent infinite loops
+    const refreshAttempts = parseInt(localStorage.getItem('login_refresh_attempts') || '0');
+
+    if (loginAttempted && !loading && !authLoading && !user && refreshAttempts < 2) {
+      console.log(`Login attempted but user is still not logged in, refreshing session (attempt ${refreshAttempts + 1})`);
+
+      // Increment the refresh attempts counter
+      localStorage.setItem('login_refresh_attempts', (refreshAttempts + 1).toString());
+
       const checkSession = async () => {
         await refreshSession();
+
+        // If we still don't have a user after refreshing, show an error
+        if (!user && refreshAttempts >= 1) {
+          console.log('Max refresh attempts reached, showing error');
+          setError('Unable to log in. Please try again with correct credentials.');
+        }
       };
+
       checkSession();
     }
+
+    // Reset the refresh attempts counter when the component unmounts
+    return () => {
+      if (user || refreshAttempts >= 2) {
+        localStorage.removeItem('login_refresh_attempts');
+      }
+    };
   }, [loginAttempted, loading, authLoading, user, refreshSession]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +60,9 @@ export default function Login() {
     setError(null);
     setLoading(true);
     setLoginAttempted(true);
+
+    // Reset refresh attempts counter
+    localStorage.setItem('login_refresh_attempts', '0');
 
     try {
       console.log('Attempting to sign in with email:', email);
@@ -52,15 +76,28 @@ export default function Login() {
 
         // Add a small delay to allow state to update
         setTimeout(() => {
-          // Redirect to dashboard on successful login
-          router.push('/dashboard');
+          // Use window.location for a hard redirect instead of router.push
+          window.location.href = '/dashboard';
         }, 500);
+        return; // Exit early to prevent setLoading(false)
       } else {
         console.warn('No error but no user returned from sign in');
         setError('Failed to sign in. Please try again.');
 
         // Try refreshing the session
-        await refreshSession();
+        try {
+          await refreshSession();
+
+          // Check if we have a user after refreshing
+          if (user) {
+            console.log('User is now logged in after refresh, redirecting to dashboard');
+            // Use window.location for a hard redirect
+            window.location.href = '/dashboard';
+            return; // Exit early to prevent setLoading(false)
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing session:', refreshError);
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -92,9 +129,19 @@ export default function Login() {
                         console.log('Manually refreshing session...');
                         await refreshSession();
                         console.log('Session refreshed, checking if user is logged in now...');
+
+                        // Try to get user info from API
+                        const response = await fetch('/api/auth/user');
+                        const data = await response.json();
+
+                        console.log('API auth check response:', data);
+
                         if (user) {
                           console.log('User is now logged in, redirecting to dashboard');
-                          router.push('/dashboard');
+                          window.location.href = '/dashboard';
+                        } else if (data.status === 'success' && data.authenticated) {
+                          console.log('User is authenticated according to API, redirecting to dashboard');
+                          window.location.href = '/dashboard';
                         } else {
                           console.log('User is still not logged in after refresh');
                           setError('Still not logged in after refresh. Please try again with correct credentials.');
