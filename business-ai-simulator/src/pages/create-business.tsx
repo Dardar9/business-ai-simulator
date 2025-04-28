@@ -527,10 +527,63 @@ export default function CreateBusiness() {
                         setError(`Error creating test user: ${error instanceof Error ? error.message : String(error)}`);
                       }
                     }}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
                     disabled={isLoading}
                   >
                     Create Test User
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      setError(null);
+
+                      try {
+                        // Call the direct business creation endpoint
+                        const response = await fetch('/api/debug/direct-create-business', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            name: formData.name || 'Debug Business',
+                            type: formData.type || 'Debug Type',
+                            description: formData.description || 'Debug Description'
+                          }),
+                        });
+
+                        const data = await response.json();
+                        console.log('Direct business creation response:', data);
+
+                        if (data.status === 'success' && data.business) {
+                          console.log('Business created successfully:', data.business);
+                          setError(`Business created successfully with ID: ${data.business.id}`);
+
+                          // Store the user ID in localStorage
+                          if (typeof window !== 'undefined' && data.user && data.user.id) {
+                            window.localStorage.setItem('temp_user_id', data.user.id);
+                          }
+
+                          // Redirect to the business detail page after a delay
+                          setTimeout(() => {
+                            window.location.href = `/businesses/${data.business.id}`;
+                          }, 2000);
+                        } else {
+                          console.error('Error creating business:', data);
+                          setError(`Error creating business: ${data.message || 'Unknown error'}`);
+                        }
+                      } catch (error) {
+                        console.error('Error in direct business creation:', error);
+                        setError(`Error creating business: ${error instanceof Error ? error.message : String(error)}`);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    disabled={isLoading}
+                  >
+                    Direct Create Business
                   </button>
                 </div>
               </form>

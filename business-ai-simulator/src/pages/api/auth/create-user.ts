@@ -8,9 +8,9 @@ export default async function handler(
   try {
     // Only allow POST requests
     if (req.method !== 'POST') {
-      return res.status(405).json({ 
-        status: 'error', 
-        message: 'Method not allowed' 
+      return res.status(405).json({
+        status: 'error',
+        message: 'Method not allowed'
       });
     }
 
@@ -25,29 +25,58 @@ export default async function handler(
 
     console.log('API: Creating user in database directly with email:', email);
 
-    // Check if user already exists
-    const { data: existingUser, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
+    // First, check if the users table exists
+    try {
+      const { error: tableCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1);
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('API: Error checking user existence:', checkError);
+      if (tableCheckError) {
+        console.error('API: Error checking users table:', tableCheckError);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Error checking users table. The table might not exist.',
+          error: tableCheckError
+        });
+      }
+    } catch (tableError) {
+      console.error('API: Exception checking users table:', tableError);
       return res.status(500).json({
         status: 'error',
-        message: 'Error checking user existence',
-        error: checkError
+        message: 'Exception checking users table. The table might not exist.',
+        error: tableError instanceof Error ? tableError.message : String(tableError)
       });
     }
 
-    if (existingUser) {
-      console.log('API: User already exists in database, returning existing ID:', existingUser.id);
-      return res.status(200).json({
-        status: 'success',
-        message: 'User already exists',
-        userId: existingUser.id
-      });
+    // Check if user already exists by email
+    try {
+      const { data: existingUserByEmail, error: emailCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (emailCheckError) {
+        console.error('API: Error checking user existence by email:', emailCheckError);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Error checking user existence by email',
+          error: emailCheckError
+        });
+      }
+
+      if (existingUserByEmail) {
+        console.log('API: User already exists in database by email, returning existing ID:', existingUserByEmail.id);
+        return res.status(200).json({
+          status: 'success',
+          message: 'User already exists',
+          userId: existingUserByEmail.id
+        });
+      }
+    } catch (emailError) {
+      console.error('API: Exception checking user by email:', emailError);
+      // Continue to create user even if check fails
     }
 
     // Generate a random ID for the user
@@ -55,33 +84,84 @@ export default async function handler(
 
     // Create new user
     console.log('API: Creating new user in database with email:', email);
-    const newUserData = {
-      auth0_id: randomId, // Using a random ID since we don't have a real auth0_id
-      email,
-      name: name || email.split('@')[0], // Use part of email as name if not provided
-    };
 
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
-      .insert([newUserData])
-      .select('id')
-      .single();
+    // Check the structure of the users table
+    try {
+      const { data: tableInfo, error: tableInfoError } = await supabase
+        .rpc('get_table_info', { table_name: 'users' });
 
-    if (createError) {
-      console.error('API: Error creating user:', createError);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Error creating user',
-        error: createError
-      });
+      if (tableInfoError) {
+        console.error('API: Error getting users table info:', tableInfoError);
+      } else {
+        console.log('API: Users table info:', tableInfo);
+      }
+    } catch (tableInfoError) {
+      console.error('API: Exception getting users table info:', tableInfoError);
     }
 
-    console.log('API: User created successfully:', newUser);
-    return res.status(201).json({
-      status: 'success',
-      message: 'User created successfully',
-      userId: newUser.id
-    });
+    // Create the user with minimal required fields
+    try {
+      const timestamp = new Date().toISOString();
+      const newUserData = {
+        auth0_id: randomId, // Using a random ID since we don't have a real auth0_id
+        email,
+        name: name || email.split('@')[0], // Use part of email as name if not provided
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert([newUserData])
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('API: Error creating user:', createError);
+
+        // Try a simpler approach if the first one fails
+        const simpleUserData = {
+          auth0_id: randomId,
+          email
+        };
+
+        const { data: simpleUser, error: simpleError } = await supabase
+          .from('users')
+          .insert([simpleUserData])
+          .select('id')
+          .single();
+
+        if (simpleError) {
+          console.error('API: Error creating simple user:', simpleError);
+          return res.status(500).json({
+            status: 'error',
+            message: 'Error creating user',
+            error: simpleError
+          });
+        }
+
+        console.log('API: Simple user created successfully:', simpleUser);
+        return res.status(201).json({
+          status: 'success',
+          message: 'Simple user created successfully',
+          userId: simpleUser.id
+        });
+      }
+
+      console.log('API: User created successfully:', newUser);
+      return res.status(201).json({
+        status: 'success',
+        message: 'User created successfully',
+        userId: newUser.id
+      });
+    } catch (createError) {
+      console.error('API: Exception creating user:', createError);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Exception creating user',
+        error: createError instanceof Error ? createError.message : String(createError)
+      });
+    }
   } catch (error) {
     console.error('API: Error in create-user API:', error);
     return res.status(500).json({
