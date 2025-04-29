@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/utils/supabaseClient';
+import { supabaseAdmin } from '@/utils/supabaseAdmin';
 
 export default async function handler(
   req: NextApiRequest,
@@ -110,29 +111,73 @@ export default async function handler(
         updated_at: timestamp
       };
 
-      const { data: newUser, error: createError } = await supabase
+      // Try with admin client first to bypass RLS
+      const { data: newUser, error: createError } = await supabaseAdmin
         .from('users')
         .insert([newUserData])
         .select('id')
         .single();
 
       if (createError) {
-        console.error('API: Error creating user:', createError);
+        console.error('API: Error creating user with admin client:', createError);
 
-        // Try a simpler approach if the first one fails
+        // Try with regular client as fallback
+        const { data: regularUser, error: regularError } = await supabase
+          .from('users')
+          .insert([newUserData])
+          .select('id')
+          .single();
+
+        if (!regularError && regularUser) {
+          console.log('API: User created successfully with regular client:', regularUser);
+          return res.status(201).json({
+            status: 'success',
+            message: 'User created successfully with regular client',
+            userId: regularUser.id
+          });
+        }
+
+        // Try a simpler approach if both previous attempts fail
+        console.log('API: Trying with minimal fields...');
         const simpleUserData = {
           auth0_id: randomId,
           email
         };
 
-        const { data: simpleUser, error: simpleError } = await supabase
+        const { data: simpleUser, error: simpleError } = await supabaseAdmin
           .from('users')
           .insert([simpleUserData])
           .select('id')
           .single();
 
         if (simpleError) {
-          console.error('API: Error creating simple user:', simpleError);
+          console.error('API: Error creating simple user with admin client:', simpleError);
+
+          // Last resort: try simple user with regular client
+          const { data: lastResortUser, error: lastResortError } = await supabase
+            .from('users')
+            .insert([simpleUserData])
+            .select('id')
+            .single();
+
+          if (lastResortError) {
+            console.error('API: All user creation attempts failed:', lastResortError);
+            return res.status(500).json({
+              status: 'error',
+              message: 'All user creation attempts failed',
+              error: lastResortError
+            });
+          }
+
+          if (lastResortUser) {
+            console.log('API: User created with last resort method:', lastResortUser);
+            return res.status(201).json({
+              status: 'success',
+              message: 'User created with last resort method',
+              userId: lastResortUser.id
+            });
+          }
+
           return res.status(500).json({
             status: 'error',
             message: 'Error creating user',

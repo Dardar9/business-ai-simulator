@@ -225,59 +225,66 @@ export default function Signup() {
                 </button>
 
                 {error && (
-                  <button
-                    type="button"
-                    className="w-full btn-secondary"
-                    disabled={loading}
-                    onClick={async () => {
-                      try {
-                        setLoading(true);
-                        setError(null);
+                  <div className="mt-4">
+                    <p className="text-sm text-red-600 mb-2">
+                      {error.includes("row-level security policy") ?
+                        "Database permission error. Please contact support or try the alternative method below." :
+                        error}
+                    </p>
+                    <button
+                      type="button"
+                      className="w-full btn-secondary"
+                      disabled={loading}
+                      onClick={async () => {
+                        try {
+                          setLoading(true);
+                          setError(null);
 
-                        // Try direct API signup as a fallback
-                        console.log('Trying direct API signup');
+                          // Try direct API signup as a fallback
+                          console.log('Trying direct API signup');
 
-                        // First create a user in the database
-                        const createUserResponse = await fetch('/api/auth/create-user', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            email,
-                            name,
-                          }),
-                        });
+                          // First create a user in the database
+                          const createUserResponse = await fetch('/api/auth/create-user', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              email,
+                              name,
+                            }),
+                          });
 
-                        const userData = await createUserResponse.json();
-                        console.log('Create user API response:', userData);
+                          const userData = await createUserResponse.json();
+                          console.log('Create user API response:', userData);
 
-                        if (userData.status === 'success') {
-                          setSuccess('Account created via alternative method. You will be redirected to login.');
+                          if (userData.status === 'success') {
+                            setSuccess('Account created via alternative method. You will be redirected to login.');
 
-                          // Clear form
-                          setName('');
-                          setEmail('');
-                          setPassword('');
-                          setConfirmPassword('');
+                            // Clear form
+                            setName('');
+                            setEmail('');
+                            setPassword('');
+                            setConfirmPassword('');
 
-                          // Redirect after a delay
-                          setTimeout(() => {
-                            window.location.href = '/login';
-                          }, 3000);
-                        } else {
-                          setError('Alternative signup method failed: ' + (userData.message || 'Unknown error'));
+                            // Redirect after a delay
+                            setTimeout(() => {
+                              window.location.href = '/login';
+                            }, 3000);
+                          } else {
+                            setError('Alternative signup method failed: ' + (userData.message || 'Unknown error'));
+                          }
+                        } catch (err) {
+                          console.error('Alternative signup error:', err);
+                          setError('Alternative signup method failed. Please try again later.');
+                        } finally {
+                          setLoading(false);
                         }
-                      } catch (err) {
-                        console.error('Alternative signup error:', err);
-                        setError('Alternative signup method failed. Please try again later.');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                  >
-                    Try Alternative Signup
-                  </button>
+                      }}
+                    >
+                      Try Alternative Signup
+                    </button>
+                  </div>
                 )}
               </form>
 
