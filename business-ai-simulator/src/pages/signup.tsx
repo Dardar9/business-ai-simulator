@@ -201,11 +201,67 @@ export default function Signup() {
 
                 <button
                   type="submit"
-                  className="w-full btn-primary"
+                  className="w-full btn-primary mb-2"
                   disabled={loading}
                 >
                   {loading ? 'Creating account...' : 'Sign Up'}
                 </button>
+
+                {error && (
+                  <button
+                    type="button"
+                    className="w-full btn-secondary"
+                    disabled={loading}
+                    onClick={async () => {
+                      try {
+                        setLoading(true);
+                        setError(null);
+
+                        // Try direct API signup as a fallback
+                        console.log('Trying direct API signup');
+
+                        // First create a user in the database
+                        const createUserResponse = await fetch('/api/auth/create-user', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            email,
+                            name,
+                          }),
+                        });
+
+                        const userData = await createUserResponse.json();
+                        console.log('Create user API response:', userData);
+
+                        if (userData.status === 'success') {
+                          setSuccess('Account created via alternative method. You will be redirected to login.');
+
+                          // Clear form
+                          setName('');
+                          setEmail('');
+                          setPassword('');
+                          setConfirmPassword('');
+
+                          // Redirect after a delay
+                          setTimeout(() => {
+                            window.location.href = '/login';
+                          }, 3000);
+                        } else {
+                          setError('Alternative signup method failed: ' + (userData.message || 'Unknown error'));
+                        }
+                      } catch (err) {
+                        console.error('Alternative signup error:', err);
+                        setError('Alternative signup method failed. Please try again later.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    Try Alternative Signup
+                  </button>
+                )}
               </form>
 
               <div className="mt-6 text-center">

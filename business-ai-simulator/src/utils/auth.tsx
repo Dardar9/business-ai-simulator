@@ -190,15 +190,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setUserId(null);
 
-      // Now sign up the new user - remove email_verified option to let Supabase handle verification
+      // Now sign up the new user with minimal options to ensure compatibility
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
-            // Remove email_verified: true to let Supabase handle the verification flow
           },
+          // Set emailRedirectTo to ensure proper redirect after email verification
+          emailRedirectTo: typeof window !== 'undefined'
+            ? `${window.location.origin}/login`
+            : 'https://business-ai-simulator.vercel.app/login',
         },
       });
 
