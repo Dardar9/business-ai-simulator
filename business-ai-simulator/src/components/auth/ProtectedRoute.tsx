@@ -44,9 +44,53 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
           // Use window.location for a hard redirect to clear any stale state
           window.location.href = '/login';
+        } else if (!userId && localUserId) {
+          // We have a user but no userId, try to use the one from localStorage
+          console.log('ProtectedRoute: User is authenticated but no userId, using localStorage value:', localUserId);
+
+          // Make a direct API call to verify the user ID
+          try {
+            const response = await fetch('/api/auth/user');
+            const data = await response.json();
+
+            console.log('ProtectedRoute: API auth check response:', data);
+
+            if (data.status === 'success' && data.authenticated && data.userId) {
+              console.log('ProtectedRoute: Got userId from API:', data.userId);
+              // Store in localStorage and proceed
+              window.localStorage.setItem('temp_user_id', data.userId);
+              setAuthChecked(true);
+              setLocalLoading(false);
+            } else {
+              // Use the localStorage value as a fallback
+              console.log('ProtectedRoute: Using localStorage userId as fallback');
+              setAuthChecked(true);
+              setLocalLoading(false);
+            }
+          } catch (error) {
+            console.error('ProtectedRoute: Error checking auth via API:', error);
+            // Still use the localStorage value as a fallback
+            console.log('ProtectedRoute: Using localStorage userId as fallback after API error');
+            setAuthChecked(true);
+            setLocalLoading(false);
+          }
+        } else if (!userId && !localUserId && retryCount < 2) {
+          // We have a user but no userId and no localStorage value, try to refresh again
+          console.log('ProtectedRoute: User is authenticated but no userId, trying to refresh again...');
+          try {
+            await refreshSession();
+            setRetryCount(prev => prev + 1);
+          } catch (error) {
+            console.error('ProtectedRoute: Error refreshing session for userId:', error);
+            setRetryCount(prev => prev + 1);
+          }
+        } else if (!userId && !localUserId) {
+          // After retries, still no userId, redirect to login
+          console.log('ProtectedRoute: User is authenticated but no userId after retries, redirecting to login...');
+          window.location.href = '/login?error=no_user_id';
         } else {
-          // User is authenticated
-          console.log('ProtectedRoute: User is authenticated:', user.id);
+          // User is authenticated and we have a userId
+          console.log('ProtectedRoute: User is authenticated:', user.id, 'with userId:', userId || localUserId);
           setAuthChecked(true);
           setLocalLoading(false);
         }
@@ -64,7 +108,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }, 5000);
 
     return () => clearTimeout(timeoutId);
-  }, [user, loading, router, refreshSession, retryCount]);
+  }, [user, userId, loading, router, refreshSession, retryCount]);
 
   // Show loading state while checking authentication
   if (loading || localLoading) {

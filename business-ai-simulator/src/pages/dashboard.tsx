@@ -15,11 +15,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchBusinesses = async () => {
-      if (userId) {
+      // Check for user ID in localStorage as a fallback
+      const localUserId = typeof window !== 'undefined' ? window.localStorage.getItem('temp_user_id') : null;
+      const effectiveUserId = userId || localUserId;
+
+      if (effectiveUserId) {
         try {
-          console.log('Fetching businesses for user ID:', userId);
+          console.log('Fetching businesses for user ID:', effectiveUserId);
           setLoading(true);
-          const businessesData = await getBusinesses(userId);
+          const businessesData = await getBusinesses(effectiveUserId);
           console.log('Fetched businesses:', businessesData);
           setBusinesses(businessesData);
         } catch (error) {
@@ -28,7 +32,7 @@ export default function Dashboard() {
           setLoading(false);
         }
       } else {
-        console.log('No userId available, skipping business fetch');
+        console.log('No userId available (neither in context nor localStorage), skipping business fetch');
         setLoading(false);
       }
     };
