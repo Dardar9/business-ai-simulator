@@ -64,28 +64,46 @@ export default function Login() {
     // Reset refresh attempts counter
     localStorage.setItem('login_refresh_attempts', '0');
 
+    // Clear any existing localStorage data
+    localStorage.removeItem('temp_user_id');
+
     try {
       console.log('Attempting to sign in with email:', email);
-      const { error, user: signedInUser } = await signIn(email, password);
+      const { error, user: signedInUser, userId: signedInUserId } = await signIn(email, password);
+
+      console.log('Sign in response:', {
+        error: error ? 'Error present' : 'No error',
+        user: signedInUser ? 'User present' : 'No user',
+        userId: signedInUserId || 'No user ID'
+      });
 
       if (error) {
         console.error('Sign in error:', error);
         setError(error.message || 'Failed to sign in. Please check your credentials.');
       } else if (signedInUser) {
-        console.log('Sign in successful, user:', signedInUser);
+        console.log('Sign in successful, user:', signedInUser.id);
+
+        // Store user ID in localStorage as a backup
+        if (signedInUserId) {
+          localStorage.setItem('temp_user_id', signedInUserId);
+          console.log('Stored user ID in localStorage:', signedInUserId);
+        }
 
         // Add a small delay to allow state to update
         setTimeout(() => {
           // Use window.location for a hard redirect instead of router.push
+          console.log('Redirecting to dashboard...');
           window.location.href = '/dashboard';
-        }, 500);
-        return; // Exit early to prevent setLoading(false)
+        }, 1000);
+
+        // Don't set loading to false since we're redirecting
+        return;
       } else {
         console.warn('No error but no user returned from sign in');
-        setError('Failed to sign in. Please try again.');
 
         // Try refreshing the session
         try {
+          console.log('Trying to refresh session...');
           await refreshSession();
 
           // Check if we have a user after refreshing
@@ -94,9 +112,30 @@ export default function Login() {
             // Use window.location for a hard redirect
             window.location.href = '/dashboard';
             return; // Exit early to prevent setLoading(false)
+          } else {
+            // Try one more direct API call as a last resort
+            try {
+              console.log('Trying direct API call to check authentication...');
+              const response = await fetch('/api/auth/user');
+              const data = await response.json();
+
+              console.log('API auth check response:', data);
+
+              if (data.status === 'success' && data.authenticated && data.userId) {
+                console.log('User is authenticated according to API, storing ID and redirecting');
+                localStorage.setItem('temp_user_id', data.userId);
+                window.location.href = '/dashboard';
+                return;
+              }
+            } catch (apiError) {
+              console.error('Error checking auth via API:', apiError);
+            }
+
+            setError('Failed to sign in. Please try again with correct credentials.');
           }
         } catch (refreshError) {
           console.error('Error refreshing session:', refreshError);
+          setError('Error refreshing session. Please try again.');
         }
       }
     } catch (err) {

@@ -6,7 +6,7 @@ interface AuthContextType {
   user: any | null;
   userId: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any, user?: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any, user?: any, userId?: string | null }>;
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any, user?: any, dbUserId?: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userId: null,
   loading: true,
-  signIn: async () => ({ error: null, user: null }),
+  signIn: async () => ({ error: null, user: null, userId: null }),
   signUp: async () => ({ error: null, user: null, dbUserId: null }),
   signOut: async () => {},
   resetPassword: async () => ({ error: null }),
@@ -169,13 +169,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Error refreshing session after sign in:', refreshError);
         }
 
-        return { error: null, user: data.user };
+        return { error: null, user: data.user, userId: dbUserId };
       }
 
-      return { error, user: data?.user };
+      return { error, user: data?.user, userId: null };
     } catch (error) {
       console.error('Error signing in:', error);
-      return { error, user: null };
+      return { error, user: null, userId: null };
     }
   };
 
