@@ -43,7 +43,7 @@ export default function Businesses() {
               effectiveUserId = data.userId;
 
               // Store in localStorage for future use
-              if (typeof window !== 'undefined') {
+              if (typeof window !== 'undefined' && data.userId) {
                 window.localStorage.setItem('temp_user_id', data.userId);
               }
             } else {
@@ -72,7 +72,7 @@ export default function Businesses() {
               effectiveUserId = createUserData.user.id;
 
               // Store in localStorage for future use
-              if (typeof window !== 'undefined') {
+              if (typeof window !== 'undefined' && effectiveUserId) {
                 window.localStorage.setItem('temp_user_id', effectiveUserId);
               }
             } else {
