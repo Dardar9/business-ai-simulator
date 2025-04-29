@@ -7,7 +7,7 @@ interface AuthContextType {
   userId: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any, user?: any, userId?: string | null }>;
-  signUp: (email: string, password: string, name?: string) => Promise<{ error: any, user?: any, dbUserId?: string | null }>;
+  signUp: (email: string, password: string, name?: string) => Promise<{ error: any, user?: any, userId?: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   refreshSession: () => Promise<void>;
@@ -169,7 +169,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Error refreshing session after sign in:', refreshError);
         }
 
-        return { error: null, user: data.user, userId: dbUserId };
+        // Use the userId that was set in the try block
+        return { error: null, user: data.user, userId };
       }
 
       return { error, user: data?.user, userId: null };
@@ -221,7 +222,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle error case first
       if (error) {
         console.error('Error during sign up:', error);
-        return { error, user: null };
+        return { error, user: null, userId: null };
       }
 
       // Handle missing user data
@@ -229,7 +230,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.warn('No user data returned from sign up');
         return {
           error: new Error('No user data returned from sign up'),
-          user: null
+          user: null,
+          userId: null
         };
       }
 
@@ -243,7 +245,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           error: {
             message: 'Please check your email to confirm your account before logging in.'
           },
-          user: data.user
+          user: data.user,
+          userId: null
         };
       }
 
@@ -293,11 +296,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return {
         error: null,
         user: data.user,
-        dbUserId // Include the database user ID in the response
+        userId: dbUserId // Include the database user ID in the response with the correct property name
       };
     } catch (error) {
       console.error('Error signing up:', error);
-      return { error, user: null };
+      return { error, user: null, userId: null };
     }
   };
 
