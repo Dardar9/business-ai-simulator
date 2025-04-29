@@ -43,10 +43,37 @@ export default function Signup() {
 
       if (error) {
         console.error('Sign up error:', error);
-        setError(error.message || 'Failed to create account. Please try again.');
-      } else {
+
+        // Check if it's an email confirmation message
+        if (error.message && error.message.includes('check your email')) {
+          // This is actually a success case where email confirmation is required
+          setSuccess('Account created successfully! Please check your email to confirm your account.');
+
+          // Clear form
+          setName('');
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+
+          // Use a hard redirect to the login page after a delay
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 3000);
+
+          return; // Exit early to prevent setLoading(false)
+        } else {
+          // This is a real error
+          setError(error.message || 'Failed to create account. Please try again.');
+        }
+      } else if (user) {
         console.log('Sign up successful, user:', user);
-        setSuccess('Account created successfully! Please check your email to confirm your account.');
+
+        // Check if email confirmation is required
+        if (user.confirmation_sent_at && !user.confirmed_at) {
+          setSuccess('Account created successfully! Please check your email to confirm your account.');
+        } else {
+          setSuccess('Account created successfully! You will be redirected to the login page.');
+        }
 
         // Clear form
         setName('');
@@ -57,9 +84,26 @@ export default function Signup() {
         // Use a hard redirect to the login page
         setTimeout(() => {
           window.location.href = '/login';
-        }, 2000);
+        }, 3000);
 
         return; // Exit early to prevent setLoading(false)
+      } else {
+        // No error but also no user - this is unexpected
+        console.warn('No error and no user returned from signup');
+        setSuccess('Account creation process started. Please check your email and follow any instructions.');
+
+        // Clear form
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+
+        // Redirect after a delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+
+        return; // Exit early
       }
     } catch (err) {
       console.error('Signup error:', err);
