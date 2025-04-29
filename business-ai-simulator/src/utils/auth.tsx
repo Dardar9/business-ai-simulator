@@ -184,13 +184,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Signing up user with email:', email);
 
       // First, sign out any existing user to prevent conflicts
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+        console.log('Successfully signed out existing user');
+      } catch (signOutError) {
+        console.error('Error signing out existing user:', signOutError);
+        // Continue with signup even if signout fails
+      }
 
       // Clear local state
       setUser(null);
       setUserId(null);
 
       // Now sign up the new user with minimal options to ensure compatibility
+      console.log('Attempting to sign up user with Supabase');
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -211,94 +218,124 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: error ? error.message : 'No error'
       });
 
-      if (!error && data.user) {
-        console.log('User signed up successfully');
+      // Handle error case first
+      if (error) {
+        console.error('Error during sign up:', error);
+        return { error, user: null };
+      }
 
-        // Check if email confirmation is required
-        if (data.user.identities && data.user.identities.length === 0) {
-          console.log('Email confirmation required. User should check their email.');
-          return {
-            error: {
-              message: 'Please check your email to confirm your account before logging in.'
-            },
-            user: data.user
-          };
-        }
+      // Handle missing user data
+      if (!data || !data.user) {
+        console.warn('No user data returned from sign up');
+        return {
+          error: new Error('No user data returned from sign up'),
+          user: null
+        };
+      }
 
-        // Only try to create the database user if we have a session
-        // This means the user is already confirmed or confirmation is not required
-        if (data.session) {
-          console.log('User has active session, creating user in database');
+      // User signed up successfully
+      console.log('User signed up successfully with ID:', data.user.id);
 
-          try {
-            // Create user in our database
-            const dbUserId = await createUserIfNotExists(
-              data.user.id,
-              email,
-              name
-            );
+      // Check if email confirmation is required
+      if (data.user.identities && data.user.identities.length === 0) {
+        console.log('Email confirmation required. User should check their email.');
+        return {
+          error: {
+            message: 'Please check your email to confirm your account before logging in.'
+          },
+          user: data.user
+        };
+      }
 
+      // Only try to create the database user if we have a session
+      // This means the user is already confirmed or confirmation is not required
+      let dbUserId = null;
+
+      if (data.session) {
+        console.log('User has active session, creating user in database');
+
+        // Try to create user in database
+        try {
+          dbUserId = await createUserIfNotExists(
+            data.user.id,
+            email,
+            name
+          );
+
+          if (dbUserId) {
             console.log('Database user created with ID:', dbUserId);
 
             // Store the user ID in localStorage as a backup
-            if (typeof window !== 'undefined' && dbUserId) {
+            if (typeof window !== 'undefined') {
               window.localStorage.setItem('temp_user_id', dbUserId);
             }
 
             // Set the user and userId state
             setUser(data.user);
             setUserId(dbUserId);
-          } catch (dbError) {
-            console.error('Error creating user in database:', dbError);
+          } else {
+            console.error('Failed to create user in database: No ID returned');
 
-            // Try a direct API call as a fallback
-            try {
-              console.log('Trying direct API call to create user');
-              const response = await fetch('/api/auth/create-user', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  email,
-                  name,
-                  auth0_id: data.user.id
-                }),
-              });
-
-              const apiData = await response.json();
-              console.log('API response for user creation:', apiData);
-
-              if (apiData.status === 'success' && apiData.userId) {
-                console.log('User created via API with ID:', apiData.userId);
-
-                // Store the user ID in localStorage
-                if (typeof window !== 'undefined') {
-                  window.localStorage.setItem('temp_user_id', apiData.userId);
-                }
-
-                setUserId(apiData.userId);
-              }
-            } catch (apiError) {
-              console.error('Error creating user via API:', apiError);
-            }
+            // Try API fallback
+            dbUserId = await tryApiUserCreation(email, name, data.user.id);
           }
-        } else {
-          console.log('No active session after signup, user may need to confirm email');
-        }
+        } catch (dbError) {
+          console.error('Error creating user in database:', dbError);
 
-        // Return success even if database creation fails
-        return { error: null, user: data.user };
-      } else if (error) {
-        console.error('Error during sign up:', error);
-        return { error, user: null };
+          // Try API fallback
+          dbUserId = await tryApiUserCreation(email, name, data.user.id);
+        }
       } else {
-        console.warn('No error but user data is missing from sign up response');
-        return { error: new Error('No user data returned from sign up'), user: null };
+        console.log('No active session after signup, user may need to confirm email');
       }
+
+      // Return success even if database creation fails
+      return {
+        error: null,
+        user: data.user,
+        dbUserId // Include the database user ID in the response
+      };
     } catch (error) {
       console.error('Error signing up:', error);
       return { error, user: null };
+    }
+  };
+
+  // Helper function to try creating a user via the API
+  const tryApiUserCreation = async (email: string, name?: string, auth0Id?: string): Promise<string | null> => {
+    try {
+      console.log('Trying direct API call to create user');
+      const response = await fetch('/api/auth/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          name,
+          auth0_id: auth0Id
+        }),
+      });
+
+      const apiData = await response.json();
+      console.log('API response for user creation:', apiData);
+
+      if (apiData.status === 'success' && apiData.userId) {
+        console.log('User created via API with ID:', apiData.userId);
+
+        // Store the user ID in localStorage
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('temp_user_id', apiData.userId);
+        }
+
+        setUserId(apiData.userId);
+        return apiData.userId;
+      }
+
+      return null;
+    } catch (apiError) {
+      console.error('Error creating user via API:', apiError);
+      return null;
     }
   };
 

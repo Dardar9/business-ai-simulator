@@ -39,7 +39,14 @@ export default function Signup() {
 
     try {
       console.log('Attempting to sign up with email:', email);
-      const { error, user } = await signUp(email, password, name);
+      const { error, user, dbUserId } = await signUp(email, password, name);
+
+      // Log detailed response for debugging
+      console.log('Sign up response details:', {
+        error: error ? 'Error present' : 'No error',
+        user: user ? 'User present' : 'No user',
+        dbUserId: dbUserId || 'No database user ID'
+      });
 
       if (error) {
         console.error('Sign up error:', error);
@@ -60,13 +67,21 @@ export default function Signup() {
             window.location.href = '/login';
           }, 3000);
 
-          return; // Exit early to prevent setLoading(false)
+          setLoading(false);
+          return;
         } else {
           // This is a real error
           setError(error.message || 'Failed to create account. Please try again.');
         }
       } else if (user) {
         console.log('Sign up successful, user:', user);
+
+        // Check if database user was created
+        if (dbUserId) {
+          console.log('Database user created with ID:', dbUserId);
+        } else {
+          console.warn('No database user ID returned, but signup was successful');
+        }
 
         // Check if email confirmation is required
         if (user.confirmation_sent_at && !user.confirmed_at) {
@@ -86,7 +101,8 @@ export default function Signup() {
           window.location.href = '/login';
         }, 3000);
 
-        return; // Exit early to prevent setLoading(false)
+        setLoading(false);
+        return;
       } else {
         // No error but also no user - this is unexpected
         console.warn('No error and no user returned from signup');
@@ -103,7 +119,8 @@ export default function Signup() {
           window.location.href = '/login';
         }, 3000);
 
-        return; // Exit early
+        setLoading(false);
+        return;
       }
     } catch (err) {
       console.error('Signup error:', err);
@@ -271,6 +288,11 @@ export default function Signup() {
                     Log in
                   </Link>
                 </p>
+                <div className="mt-4">
+                  <Link href="/debug" className="text-xs text-gray-500 hover:underline">
+                    Debug Tools
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

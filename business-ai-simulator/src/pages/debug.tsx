@@ -116,6 +116,82 @@ export default function DebugPage() {
     }
   };
 
+  const testSignupFlow = async () => {
+    try {
+      setIsLoading(true);
+
+      // Generate test credentials
+      const testEmail = `test-${Date.now()}@example.com`;
+      const testPassword = 'Test123456';
+      const testName = 'Test User';
+
+      // Test the signup function directly
+      const { signUp } = useAuth();
+      const result = await signUp(testEmail, testPassword, testName);
+
+      setTestResult({
+        operation: 'Test Signup Flow',
+        success: !result.error,
+        user: result.user ? {
+          id: result.user.id,
+          email: result.user.email,
+          confirmed: !!result.user.confirmed_at
+        } : null,
+        dbUserId: result.dbUserId,
+        error: result.error ? result.error.message : null
+      });
+
+    } catch (error) {
+      setTestResult({
+        operation: 'Test Signup Flow',
+        success: false,
+        error: String(error)
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const testApiCreateUser = async () => {
+    try {
+      setIsLoading(true);
+
+      // Generate test data
+      const testEmail = `test-${Date.now()}@example.com`;
+      const testName = 'Test User';
+
+      // Call the API directly
+      const response = await fetch('/api/auth/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: testEmail,
+          name: testName
+        }),
+      });
+
+      const data = await response.json();
+
+      setTestResult({
+        operation: 'Test API Create User',
+        success: data.status === 'success',
+        data,
+        userId: data.userId
+      });
+
+    } catch (error) {
+      setTestResult({
+        operation: 'Test API Create User',
+        success: false,
+        error: String(error)
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     checkDbConnection();
     checkSupabaseEnv();
@@ -201,6 +277,20 @@ export default function DebugPage() {
                 disabled={isLoading}
               >
                 Test User Creation
+              </button>
+              <button
+                onClick={testSignupFlow}
+                className="bg-pink-500 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded"
+                disabled={isLoading}
+              >
+                Test Signup Flow
+              </button>
+              <button
+                onClick={testApiCreateUser}
+                className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded"
+                disabled={isLoading}
+              >
+                Test API Create User
               </button>
             </div>
           </div>

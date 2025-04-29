@@ -244,74 +244,146 @@ export const createUserIfNotExists = async (
   try {
     console.log('createUserIfNotExists called with:', { auth0Id, email, name, avatarUrl });
 
-    // Check if user exists
-    console.log('Checking if user exists in Supabase...');
-    const { data: existingUser, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth0_id', auth0Id)
-      .single();
-
-    if (checkError) {
-      if (checkError.code === 'PGRST116') { // PGRST116 is "no rows returned"
-        console.log('User not found in database, will create new user');
-      } else {
-        console.error('Error checking user existence:', checkError);
-        return null;
-      }
+    if (!auth0Id) {
+      console.error('Cannot create user: auth0Id is required but was not provided');
+      return null;
     }
 
-    if (existingUser) {
-      console.log('User already exists in database, returning existing ID:', existingUser.id);
-      return existingUser.id;
+    if (!email) {
+      console.error('Cannot create user: email is required but was not provided');
+      return null;
+    }
+
+    // Check if user exists by auth0Id
+    console.log('Checking if user exists in Supabase by auth0Id...');
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth0_id', auth0Id)
+        .single();
+
+      if (checkError) {
+        if (checkError.code === 'PGRST116') { // PGRST116 is "no rows returned"
+          console.log('User not found by auth0Id, will check by email');
+        } else {
+          console.error('Error checking user existence by auth0Id:', checkError);
+          // Continue to next check instead of returning null
+        }
+      } else if (existingUser) {
+        console.log('User already exists in database by auth0Id, returning existing ID:', existingUser.id);
+        return existingUser.id;
+      }
+    } catch (checkError) {
+      console.error('Exception checking user by auth0Id:', checkError);
+      // Continue to next check instead of returning null
+    }
+
+    // Check if user exists by email as a fallback
+    console.log('Checking if user exists in Supabase by email...');
+    try {
+      const { data: existingUserByEmail, error: emailCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (emailCheckError) {
+        if (emailCheckError.code !== 'PGRST116') { // Not "no rows returned"
+          console.error('Error checking user existence by email:', emailCheckError);
+        }
+      } else if (existingUserByEmail) {
+        console.log('User already exists in database by email, returning existing ID:', existingUserByEmail.id);
+        return existingUserByEmail.id;
+      }
+    } catch (emailCheckError) {
+      console.error('Exception checking user by email:', emailCheckError);
     }
 
     // Create new user
     console.log('Creating new user in Supabase...');
+    const timestamp = new Date().toISOString();
     const newUserData = {
       auth0_id: auth0Id,
       email,
-      name,
-      avatar_url: avatarUrl
+      name: name || email.split('@')[0], // Use part of email as name if not provided
+      avatar_url: avatarUrl,
+      created_at: timestamp,
+      updated_at: timestamp
     };
     console.log('New user data:', newUserData);
 
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
-      .insert([newUserData])
-      .select('id')
-      .single();
+    try {
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert([newUserData])
+        .select('id')
+        .single();
 
-    if (createError) {
-      console.error('Error creating user:', createError);
+      if (createError) {
+        console.error('Error creating user:', createError);
 
-      // Check if it's a foreign key constraint error
-      if (createError.code === '23503') {
-        console.error('Foreign key constraint error. Make sure the auth0_id is valid.');
-      }
-
-      // Check if it's a unique constraint error
-      if (createError.code === '23505') {
-        console.error('Unique constraint error. User with this auth0_id or email might already exist.');
-
-        // Try to get the user again
-        const { data: retryUser } = await supabase
-          .from('users')
-          .select('id')
-          .or(`auth0_id.eq.${auth0Id},email.eq.${email}`)
-          .single();
-
-        if (retryUser) {
-          console.log('Found user on retry:', retryUser);
-          return retryUser.id;
+        // Check if it's a foreign key constraint error
+        if (createError.code === '23503') {
+          console.error('Foreign key constraint error. Make sure the auth0_id is valid.');
         }
+
+        // Check if it's a unique constraint error
+        if (createError.code === '23505') {
+          console.error('Unique constraint error. User with this auth0_id or email might already exist.');
+
+          // Try to get the user again with a more robust query
+          try {
+            const { data: retryUser, error: retryError } = await supabase
+              .from('users')
+              .select('id')
+              .or(`auth0_id.eq.${auth0Id},email.eq.${email}`)
+              .single();
+
+            if (retryError) {
+              console.error('Error retrying user lookup:', retryError);
+            } else if (retryUser) {
+              console.log('Found user on retry:', retryUser);
+              return retryUser.id;
+            }
+          } catch (retryError) {
+            console.error('Exception in retry user lookup:', retryError);
+          }
+        }
+
+        // Try with minimal fields as a last resort
+        try {
+          console.log('Trying with minimal fields...');
+          const minimalUserData = {
+            auth0_id: auth0Id,
+            email
+          };
+
+          const { data: minimalUser, error: minimalError } = await supabase
+            .from('users')
+            .insert([minimalUserData])
+            .select('id')
+            .single();
+
+          if (minimalError) {
+            console.error('Error creating user with minimal fields:', minimalError);
+          } else if (minimalUser) {
+            console.log('User created with minimal fields:', minimalUser);
+            return minimalUser.id;
+          }
+        } catch (minimalError) {
+          console.error('Exception creating user with minimal fields:', minimalError);
+        }
+
+        return null;
       }
 
+      console.log('User created successfully:', newUser);
+      return newUser?.id || null;
+    } catch (createError) {
+      console.error('Exception creating user:', createError);
       return null;
     }
-
-    console.log('User created successfully:', newUser);
-    return newUser?.id || null;
   } catch (error) {
     console.error('Error in createUserIfNotExists:', error);
     return null;
