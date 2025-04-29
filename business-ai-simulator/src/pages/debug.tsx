@@ -137,7 +137,7 @@ export default function DebugPage() {
           email: result.user.email,
           confirmed: !!result.user.confirmed_at
         } : null,
-        dbUserId: result.dbUserId,
+        userId: result.userId,
         error: result.error ? result.error.message : null
       });
 
