@@ -580,10 +580,83 @@ export default function CreateBusiness() {
                         setIsLoading(false);
                       }
                     }}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
                     disabled={isLoading}
                   >
                     Direct Create Business
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      setError(null);
+
+                      try {
+                        // Test Supabase connection
+                        const response = await fetch('/api/debug/supabase-test');
+                        const data = await response.json();
+                        console.log('Supabase test response:', data);
+
+                        if (data.status === 'success') {
+                          setError(`Supabase test completed. Check console for details.`);
+                        } else {
+                          setError(`Supabase test failed: ${data.message || 'Unknown error'}`);
+                        }
+                      } catch (error) {
+                        console.error('Error in Supabase test:', error);
+                        setError(`Error in Supabase test: ${error instanceof Error ? error.message : String(error)}`);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
+                    disabled={isLoading}
+                  >
+                    Test Supabase Connection
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      setError(null);
+
+                      try {
+                        // Create a test user
+                        const response = await fetch('/api/debug/create-test-user', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          }
+                        });
+
+                        const data = await response.json();
+                        console.log('Create test user response:', data);
+
+                        if (data.status === 'success' && data.user) {
+                          console.log('Test user created successfully:', data.user);
+                          setError(`Test user created successfully with ID: ${data.user.id} using ${data.approach} approach`);
+
+                          // Store the user ID in localStorage
+                          if (typeof window !== 'undefined' && data.user.id) {
+                            window.localStorage.setItem('temp_user_id', data.user.id);
+                          }
+                        } else {
+                          console.error('Error creating test user:', data);
+                          setError(`Error creating test user: ${data.message || 'Unknown error'}`);
+                        }
+                      } catch (error) {
+                        console.error('Error creating test user:', error);
+                        setError(`Error creating test user: ${error instanceof Error ? error.message : String(error)}`);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                    disabled={isLoading}
+                  >
+                    Create Test User Only
                   </button>
                 </div>
               </form>
