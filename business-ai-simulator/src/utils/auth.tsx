@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   userId: null,
   loading: true,
   signIn: async () => ({ error: null, user: null, userId: null }),
-  signUp: async () => ({ error: null, user: null, dbUserId: null }),
+  signUp: async () => ({ error: null, user: null, userId: null }),
   signOut: async () => {},
   resetPassword: async () => ({ error: null }),
   refreshSession: async () => {},

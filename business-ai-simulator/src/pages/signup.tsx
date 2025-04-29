@@ -39,13 +39,13 @@ export default function Signup() {
 
     try {
       console.log('Attempting to sign up with email:', email);
-      const { error, user, dbUserId } = await signUp(email, password, name);
+      const { error, user, userId } = await signUp(email, password, name);
 
       // Log detailed response for debugging
       console.log('Sign up response details:', {
         error: error ? 'Error present' : 'No error',
         user: user ? 'User present' : 'No user',
-        dbUserId: dbUserId || 'No database user ID'
+        userId: userId || 'No database user ID'
       });
 
       if (error) {
@@ -77,8 +77,8 @@ export default function Signup() {
         console.log('Sign up successful, user:', user);
 
         // Check if database user was created
-        if (dbUserId) {
-          console.log('Database user created with ID:', dbUserId);
+        if (userId) {
+          console.log('Database user created with ID:', userId);
         } else {
           console.warn('No database user ID returned, but signup was successful');
         }
