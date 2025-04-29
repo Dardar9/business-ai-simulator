@@ -8,14 +8,14 @@ export default async function handler(
   try {
     // Only allow GET requests
     if (req.method !== 'GET') {
-      return res.status(405).json({ 
-        status: 'error', 
-        message: 'Method not allowed' 
+      return res.status(405).json({
+        status: 'error',
+        message: 'Method not allowed'
       });
     }
 
     console.log('API: Testing Supabase connection');
-    
+
     // Collect environment variables (without exposing sensitive values)
     const envInfo = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set',
@@ -24,16 +24,16 @@ export default async function handler(
       VERCEL_ENV: process.env.VERCEL_ENV,
       VERCEL_URL: process.env.VERCEL_URL,
     };
-    
+
     console.log('API: Environment info:', envInfo);
-    
+
     // Test basic connection
     let connectionTest = 'Failed';
     let connectionError = null;
-    
+
     try {
       const { data, error } = await supabase.from('_test_connection').select('*').limit(1);
-      
+
       if (error) {
         connectionError = error;
         console.error('API: Connection test error:', error);
@@ -45,16 +45,26 @@ export default async function handler(
       connectionError = error;
       console.error('API: Connection test exception:', error);
     }
-    
+
     // Test tables existence
     const tables = ['users', 'businesses', 'agents'];
-    const tableResults = {};
-    
+
+    // Define the type for table results
+    interface TableResult {
+      exists: boolean;
+      error?: any;
+      sampleCount?: number;
+      sample?: any;
+    }
+
+    // Use Record to properly type the object with string keys
+    const tableResults: Record<string, TableResult> = {};
+
     for (const table of tables) {
       try {
         console.log(`API: Testing table '${table}'`);
         const { data, error } = await supabase.from(table).select('*').limit(1);
-        
+
         if (error) {
           console.error(`API: Error accessing table '${table}':`, error);
           tableResults[table] = {
@@ -77,40 +87,40 @@ export default async function handler(
         };
       }
     }
-    
+
     // Try to create a test record in users table
     let createTest = 'Not attempted';
     let createError = null;
     let createdUser = null;
-    
+
     try {
       console.log('API: Testing user creation');
-      
+
       // Generate test data
       const timestamp = new Date().toISOString();
       const testId = `test_${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `${testId}@example.com`;
-      
+
       // Try to create a user with minimal fields
       const userData = {
         auth0_id: testId,
         email: testEmail
       };
-      
+
       const { data, error } = await supabase
         .from('users')
         .insert([userData])
         .select()
         .single();
-        
+
       if (error) {
         createError = error;
         console.error('API: User creation test error:', error);
-        
+
         // Try with more fields
         try {
           console.log('API: Trying user creation with more fields');
-          
+
           const fullUserData = {
             auth0_id: testId,
             email: testEmail,
@@ -118,13 +128,13 @@ export default async function handler(
             created_at: timestamp,
             updated_at: timestamp
           };
-          
+
           const { data: fullData, error: fullError } = await supabase
             .from('users')
             .insert([fullUserData])
             .select()
             .single();
-            
+
           if (fullError) {
             console.error('API: Full user creation test error:', fullError);
           } else {
@@ -144,19 +154,19 @@ export default async function handler(
       createError = error;
       console.error('API: User creation test exception:', error);
     }
-    
+
     // Try to get schema information
     let schemaInfo = null;
     let schemaError = null;
-    
+
     try {
       console.log('API: Getting schema information');
-      
+
       const { data, error } = await supabase
         .from('information_schema.tables')
         .select('table_name')
         .eq('table_schema', 'public');
-        
+
       if (error) {
         schemaError = error;
         console.error('API: Schema info error:', error);
@@ -168,7 +178,7 @@ export default async function handler(
       schemaError = error;
       console.error('API: Schema info exception:', error);
     }
-    
+
     // Return all test results
     return res.status(200).json({
       status: 'success',
