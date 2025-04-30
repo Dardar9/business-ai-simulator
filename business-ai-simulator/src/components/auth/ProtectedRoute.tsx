@@ -15,14 +15,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       console.log('ProtectedRoute: Starting authentication check');
-      
+
       // First check: If we have a user from the auth context, we're authenticated
       if (user) {
         console.log('ProtectedRoute: User found in auth context');
         setIsAuthenticated(true);
         return;
       }
-      
+
       // Second check: Check if we have a user ID in localStorage
       const localUserId = typeof window !== 'undefined' ? window.localStorage.getItem('temp_user_id') : null;
       if (localUserId) {
@@ -30,17 +30,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(true);
         return;
       }
-      
+
       // Third check: Check if we're on the dashboard page and there's a user in localStorage
       if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) {
         // This is a special case for the dashboard page
         console.log('ProtectedRoute: On dashboard page, checking localStorage');
-        
+
         // Try to get user from API
         try {
           const response = await fetch('/api/auth/user');
           const data = await response.json();
-          
+
           if (data.status === 'success' && data.authenticated) {
             console.log('ProtectedRoute: User authenticated via API');
             setIsAuthenticated(true);
@@ -50,29 +50,61 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           console.error('ProtectedRoute: Error checking auth via API:', error);
         }
       }
-      
+
       // If we get here, we're not authenticated
       console.log('ProtectedRoute: No authentication found, redirecting to login');
       setIsAuthenticated(false);
       window.location.href = '/login';
     };
-    
+
     checkAuth();
-    
+
     // Set a timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       if (isAuthenticated === null) {
         console.log('ProtectedRoute: Authentication check timed out');
         setTimeoutOccurred(true);
-        
+
         // Force authentication if we're on the dashboard page
         if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) {
           console.log('ProtectedRoute: Forcing authentication for dashboard');
-          setIsAuthenticated(true);
+
+          // Try to force authentication via API
+          fetch('/api/auth/force-auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: user?.email || 'anonymous@example.com',
+              auth0_id: user?.id
+            }),
+          })
+            .then(response => response.json())
+            .then(data => {
+              console.log('ProtectedRoute: Force auth response:', data);
+
+              if (data.status === 'success' && data.userId) {
+                // Store in localStorage
+                if (typeof window !== 'undefined') {
+                  window.localStorage.setItem('temp_user_id', data.userId);
+                }
+
+                setIsAuthenticated(true);
+              } else {
+                // If force auth fails, still allow access to dashboard
+                setIsAuthenticated(true);
+              }
+            })
+            .catch(error => {
+              console.error('ProtectedRoute: Error in force auth:', error);
+              // If force auth fails, still allow access to dashboard
+              setIsAuthenticated(true);
+            });
         }
       }
     }, 3000);
-    
+
     return () => clearTimeout(timeoutId);
   }, [user, router]);
 
@@ -89,7 +121,38 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             </p>
             <div className="flex flex-col space-y-2">
               <button
-                onClick={() => setIsAuthenticated(true)}
+                onClick={() => {
+                  // Try to force authentication via API
+                  fetch('/api/auth/force-auth', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      email: user?.email || 'anonymous@example.com',
+                      auth0_id: user?.id
+                    }),
+                  })
+                    .then(response => response.json())
+                    .then(data => {
+                      console.log('ProtectedRoute: Force auth response from button:', data);
+
+                      if (data.status === 'success' && data.userId) {
+                        // Store in localStorage
+                        if (typeof window !== 'undefined') {
+                          window.localStorage.setItem('temp_user_id', data.userId);
+                        }
+                      }
+
+                      // Always continue
+                      setIsAuthenticated(true);
+                    })
+                    .catch(error => {
+                      console.error('ProtectedRoute: Error in force auth from button:', error);
+                      // If force auth fails, still allow access
+                      setIsAuthenticated(true);
+                    });
+                }}
                 className="text-primary-600 underline"
               >
                 Continue Anyway
