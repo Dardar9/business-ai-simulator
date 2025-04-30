@@ -147,8 +147,16 @@ export default async function handler(
             max_tokens: 150
           });
 
-          aiGeneratedDescription = descriptionResponse.choices[0].message.content.trim();
-          console.log('API: Generated AI description:', aiGeneratedDescription);
+          // Add null checks to handle potential undefined values
+          if (descriptionResponse?.choices &&
+              descriptionResponse.choices.length > 0 &&
+              descriptionResponse.choices[0]?.message?.content) {
+            aiGeneratedDescription = descriptionResponse.choices[0].message.content.trim();
+            console.log('API: Generated AI description:', aiGeneratedDescription);
+          } else {
+            aiGeneratedDescription = `A promising ${type} business focused on innovation and customer satisfaction.`;
+            console.log('API: Using default description due to empty AI response');
+          }
         }
 
         // Generate AI agents
@@ -179,15 +187,35 @@ Format the response as a valid JSON array of objects with the following structur
           response_format: { type: "json_object" }
         });
 
-        const agentsContent = agentsResponse.choices[0].message.content.trim();
-        console.log('API: Generated AI agents content:', agentsContent);
+        // Add null checks to handle potential undefined values
+        let agentsContent = '';
+        if (agentsResponse?.choices &&
+            agentsResponse.choices.length > 0 &&
+            agentsResponse.choices[0]?.message?.content) {
+          agentsContent = agentsResponse.choices[0].message.content.trim();
+          console.log('API: Generated AI agents content:', agentsContent);
+        } else {
+          console.log('API: Empty AI response for agents, will use default agents');
+          // We'll use the default agents defined below
+        }
 
         try {
-          const parsedAgents = JSON.parse(agentsContent);
-          if (parsedAgents.agents && Array.isArray(parsedAgents.agents)) {
-            aiGeneratedAgents = parsedAgents.agents;
-          } else if (Array.isArray(parsedAgents)) {
-            aiGeneratedAgents = parsedAgents;
+          // Only try to parse if we have content
+          if (agentsContent && agentsContent.trim() !== '') {
+            const parsedAgents = JSON.parse(agentsContent);
+            if (parsedAgents && parsedAgents.agents && Array.isArray(parsedAgents.agents)) {
+              aiGeneratedAgents = parsedAgents.agents;
+            } else if (parsedAgents && Array.isArray(parsedAgents)) {
+              aiGeneratedAgents = parsedAgents;
+            } else {
+              // If we got JSON but not in the expected format, use defaults
+              console.log('API: Unexpected JSON format for agents, using defaults');
+              throw new Error('Unexpected JSON format');
+            }
+          } else {
+            // If we have no content, use defaults
+            console.log('API: No content to parse for agents, using defaults');
+            throw new Error('No content to parse');
           }
         } catch (parseError) {
           console.error('API: Error parsing AI agents:', parseError);
