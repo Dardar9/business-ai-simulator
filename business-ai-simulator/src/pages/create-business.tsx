@@ -407,24 +407,24 @@ export default function CreateBusiness() {
                   Get User ID
                 </button>
 
-                {/* Try Simple Method button */}
+                {/* Try Admin Method button */}
                 {error.includes('Error creating business') && (
                   <button
                     onClick={() => {
-                      // Scroll to the Super Simple Method button
-                      const simpleButton = document.querySelector('.bg-blue-500.hover\\:bg-blue-600');
-                      if (simpleButton) {
-                        simpleButton.scrollIntoView({ behavior: 'smooth' });
+                      // Scroll to the Admin Method button
+                      const adminButton = document.querySelector('.bg-purple-500.hover\\:bg-purple-600');
+                      if (adminButton) {
+                        adminButton.scrollIntoView({ behavior: 'smooth' });
                         // Add a highlight effect
-                        simpleButton.classList.add('ring-4', 'ring-blue-300');
+                        adminButton.classList.add('ring-4', 'ring-purple-300');
                         setTimeout(() => {
-                          simpleButton.classList.remove('ring-4', 'ring-blue-300');
+                          adminButton.classList.remove('ring-4', 'ring-purple-300');
                         }, 2000);
                       }
                     }}
                     className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-2 rounded text-sm"
                   >
-                    Try Simple Method
+                    Try Admin Method
                   </button>
                 )}
               </div>
@@ -656,15 +656,89 @@ export default function CreateBusiness() {
                           setIsLoading(false);
                         }
                       }}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
                       disabled={isLoading}
                     >
                       {isLoading ? 'Creating...' : 'Create Business (Super Simple Method)'}
                     </button>
 
+                    {/* Admin Method Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        setError(null);
+
+                        try {
+                          // Call the admin business creation endpoint
+                          const response = await fetch('/api/debug/admin-create-business', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              name: formData.name || 'Admin Business',
+                              type: formData.type || 'Admin Type',
+                              description: formData.description || 'Created with admin privileges'
+                            }),
+                          });
+
+                          const data = await response.json();
+                          console.log('Admin business creation response:', data);
+
+                          if (data.status === 'success' && data.business) {
+                            console.log('Business created successfully with admin method:', data.business);
+                            setError(`Business created successfully with ID: ${data.business.id}`);
+
+                            // Store the user ID in localStorage
+                            if (typeof window !== 'undefined' && data.user_id) {
+                              window.localStorage.setItem('temp_user_id', data.user_id);
+                            }
+
+                            // Redirect to the business detail page after a delay
+                            setTimeout(() => {
+                              window.location.href = `/businesses/${data.business.id}`;
+                            }, 1000);
+                          } else {
+                            console.error('Error creating business with admin method:', data);
+                            // Improved error handling to show more details
+                            const errorDetails = typeof data === 'object' ?
+                              JSON.stringify(data, null, 2) :
+                              (data?.message || 'Unknown error');
+                            setError(`Error creating business: ${errorDetails}`);
+                          }
+                        } catch (error) {
+                          console.error('Error in admin business creation:', error);
+
+                          // Improved error handling for the catch block
+                          let errorMessage = 'Unknown error';
+
+                          if (error instanceof Error) {
+                            errorMessage = error.message;
+                          } else if (typeof error === 'object') {
+                            try {
+                              errorMessage = JSON.stringify(error, null, 2);
+                            } catch (e) {
+                              errorMessage = 'Error object could not be stringified';
+                            }
+                          } else if (error !== null && error !== undefined) {
+                            errorMessage = String(error);
+                          }
+
+                          setError(`Error creating business: ${errorMessage}`);
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Creating...' : 'Create Business (Admin Method)'}
+                    </button>
+
                     <p className="text-xs mt-1 text-gray-500">
                       These options create your business with default AI agents, bypassing the AI generation process.
-                      Try the Super Simple Method if the Direct Method fails.
+                      Try the Admin Method if other methods fail due to permission issues.
                     </p>
                   </div>
                 </div>
