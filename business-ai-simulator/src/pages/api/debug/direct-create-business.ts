@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/utils/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,126 +26,92 @@ export default async function handler(
 
     console.log('API: Creating business directly with name:', name);
 
-    // First, create a test user
-    try {
-      // Generate a random email and ID
-      const randomId = Math.random().toString(36).substring(2, 15);
-      const testEmail = `test_${randomId}@example.com`;
+    // Log Supabase connection info
+    console.log('API: Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set');
+    console.log('API: Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Not set');
 
-      // Create a test user
+    try {
+      // Use a hardcoded test user ID that we know exists
+      // This is a special user ID for direct business creation
+      const DIRECT_CREATION_USER_ID = 'direct_creation_user';
       const timestamp = new Date().toISOString();
 
-      // Log Supabase connection info
-      console.log('API: Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set');
-      console.log('API: Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Not set');
+      // First, check if our special user exists
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, auth0_id')
+        .eq('auth0_id', DIRECT_CREATION_USER_ID)
+        .single();
 
-      // Try different approaches to create a user
-      let testUser = null;
-      let userCreated = false;
+      if (userCheckError) {
+        console.log('API: Special user does not exist, creating it now');
 
-      // Approach 1: Minimal fields
-      try {
-        console.log('API: Trying minimal user creation');
-
-        const minimalUserData = {
-          auth0_id: randomId,
-          email: testEmail
-        };
-
-        const { data: minimalUser, error: minimalError } = await supabase
+        // Create our special user if it doesn't exist
+        const { data: newUser, error: createUserError } = await supabase
           .from('users')
-          .insert([minimalUserData])
-          .select('id')
-          .single();
-
-        if (minimalError) {
-          console.error('API: Minimal user creation error:', minimalError);
-        } else {
-          console.log('API: Minimal user creation successful:', minimalUser);
-          testUser = minimalUser;
-          userCreated = true;
-        }
-      } catch (minimalError) {
-        console.error('API: Minimal user creation exception:', minimalError);
-      }
-
-      // Approach 2: Standard fields
-      if (!userCreated) {
-        try {
-          console.log('API: Trying standard user creation');
-
-          const standardUserData = {
-            auth0_id: randomId,
-            email: testEmail,
-            name: 'Test User'
-          };
-
-          const { data: standardUser, error: standardError } = await supabase
-            .from('users')
-            .insert([standardUserData])
-            .select('id')
-            .single();
-
-          if (standardError) {
-            console.error('API: Standard user creation error:', standardError);
-          } else {
-            console.log('API: Standard user creation successful:', standardUser);
-            testUser = standardUser;
-            userCreated = true;
-          }
-        } catch (standardError) {
-          console.error('API: Standard user creation exception:', standardError);
-        }
-      }
-
-      // Approach 3: Full fields
-      if (!userCreated) {
-        try {
-          console.log('API: Trying full user creation');
-
-          const fullUserData = {
-            auth0_id: randomId,
-            email: testEmail,
-            name: 'Test User',
+          .insert([{
+            auth0_id: DIRECT_CREATION_USER_ID,
+            email: 'direct_creation@example.com',
+            name: 'Direct Creation User',
             created_at: timestamp,
             updated_at: timestamp
-          };
+          }])
+          .select('id, auth0_id')
+          .single();
 
-          const { data: fullUser, error: fullError } = await supabase
+        if (createUserError) {
+          console.error('API: Error creating special user:', createUserError);
+
+          // Try with minimal fields
+          const { data: minimalUser, error: minimalError } = await supabase
             .from('users')
-            .insert([fullUserData])
-            .select('id')
+            .insert([{
+              auth0_id: DIRECT_CREATION_USER_ID,
+              email: 'direct_creation@example.com'
+            }])
+            .select('id, auth0_id')
             .single();
 
-          if (fullError) {
-            console.error('API: Full user creation error:', fullError);
+          if (minimalError) {
+            console.error('API: Error creating minimal special user:', minimalError);
+
+            // If we can't create the special user, try to find any existing user
+            const { data: anyUser, error: anyUserError } = await supabase
+              .from('users')
+              .select('id, auth0_id')
+              .limit(1)
+              .single();
+
+            if (anyUserError || !anyUser) {
+              console.error('API: Could not find any user:', anyUserError);
+              return res.status(500).json({
+                status: 'error',
+                message: 'Could not find or create a user for business creation',
+                error: anyUserError || 'No users found'
+              });
+            }
+
+            console.log('API: Using existing user for business creation:', anyUser);
+            var userId = anyUser.auth0_id;
           } else {
-            console.log('API: Full user creation successful:', fullUser);
-            testUser = fullUser;
-            userCreated = true;
+            console.log('API: Created minimal special user:', minimalUser);
+            var userId = DIRECT_CREATION_USER_ID;
           }
-        } catch (fullError) {
-          console.error('API: Full user creation exception:', fullError);
+        } else {
+          console.log('API: Created special user:', newUser);
+          var userId = DIRECT_CREATION_USER_ID;
         }
+      } else {
+        console.log('API: Special user already exists:', existingUser);
+        var userId = DIRECT_CREATION_USER_ID;
       }
 
-      // If all approaches failed, return error
-      if (!userCreated || !testUser) {
-        console.error('API: All user creation approaches failed');
-        return res.status(500).json({
-          status: 'error',
-          message: 'All user creation approaches failed',
-          testId: randomId,
-          testEmail
-        });
-      }
-
-      console.log('API: Test user created successfully:', testUser);
+      console.log('API: Using user ID for business creation:', userId);
 
       // Now create the business
       // IMPORTANT: user_id should be the auth0_id, not the user's UUID
       const businessData = {
-        user_id: randomId, // Use auth0_id as the user_id
+        user_id: userId, // Use the user ID we found or created
         name,
         type,
         description: description || '',
@@ -171,11 +138,11 @@ export default async function handler(
           if (error.code === '23503') { // Foreign key constraint error
             console.log('API: Foreign key constraint error, trying with a different approach');
 
-            // Try creating the business with a direct SQL query
+            // Try creating the business with a simpler object
             try {
               // Create a simpler business object
               const simplifiedBusinessData = {
-                user_id: randomId,
+                user_id: userId,
                 name,
                 type,
                 description: description || ''
@@ -215,7 +182,7 @@ export default async function handler(
         return res.status(500).json({
           status: 'error',
           message: 'Failed to create business after multiple attempts',
-          userId: randomId
+          userId: userId
         });
       }
 
@@ -295,11 +262,9 @@ export default async function handler(
         message: 'Business created successfully',
         business: newBusiness,
         agents: newAgents || [],
-        user: testUser,
-        auth0_id: randomId,
-        email: testEmail,
+        auth0_id: userId,
         debug_info: {
-          userCreationMethod: userCreated ? 'success' : 'failed',
+          userMethod: 'Using hardcoded or existing user',
           businessCreationMethod: businessCreated ? 'success' : 'failed',
           agentsCreated: newAgents.length
         }
