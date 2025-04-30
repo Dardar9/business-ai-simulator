@@ -130,7 +130,15 @@ export default async function handler(
       // Step 2: Generate AI content for the business
       console.log('API: Generating AI content for business');
 
-      let aiGeneratedAgents = [];
+      // Define an interface for the agent structure
+      interface AIAgent {
+        name: string;
+        role: string;
+        description: string;
+        skills: string[];
+      }
+
+      let aiGeneratedAgents: AIAgent[] = [];
       let aiGeneratedDescription = description || '';
 
       try {
@@ -226,19 +234,19 @@ Format the response as a valid JSON array of objects with the following structur
               role: "Chief Executive Officer",
               description: "Leads the company with strategic vision and operational oversight.",
               skills: ["leadership", "strategy", "management", "communication"]
-            },
+            } as AIAgent,
             {
               name: "Taylor Smith",
               role: "Chief Technology Officer",
               description: "Oversees all technical aspects and innovation initiatives.",
               skills: ["technology", "innovation", "development", "architecture"]
-            },
+            } as AIAgent,
             {
               name: "Jordan Williams",
               role: "Marketing Director",
               description: "Manages brand strategy and marketing campaigns.",
               skills: ["marketing", "branding", "social media", "analytics"]
-            }
+            } as AIAgent
           ];
         }
       } catch (aiError) {
@@ -254,19 +262,19 @@ Format the response as a valid JSON array of objects with the following structur
             role: "Chief Executive Officer",
             description: "Leads the company with strategic vision and operational oversight.",
             skills: ["leadership", "strategy", "management", "communication"]
-          },
+          } as AIAgent,
           {
             name: "Taylor Smith",
             role: "Chief Technology Officer",
             description: "Oversees all technical aspects and innovation initiatives.",
             skills: ["technology", "innovation", "development", "architecture"]
-          },
+          } as AIAgent,
           {
             name: "Jordan Williams",
             role: "Marketing Director",
             description: "Manages brand strategy and marketing campaigns.",
             skills: ["marketing", "branding", "social media", "analytics"]
-          }
+          } as AIAgent
         ];
       }
 
@@ -302,7 +310,7 @@ Format the response as a valid JSON array of objects with the following structur
       // Step 4: Create AI-generated agents with admin client
       console.log('API: Creating AI-generated agents for business');
 
-      const formattedAgents = aiGeneratedAgents.map(agent => ({
+      const formattedAgents = aiGeneratedAgents.map((agent: AIAgent) => ({
         name: agent.name,
         role: agent.role,
         description: agent.description,
