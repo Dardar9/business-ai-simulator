@@ -268,25 +268,44 @@ export default function CreateBusiness() {
       }
     } catch (error: any) {
       console.error('Error creating business:', error);
+
       // Provide more detailed error information
       let errorMessage = 'An error occurred while creating your business. Please try again or use the Direct Create Business button below.';
 
-      if (error.message) {
-        errorMessage += ` Error details: ${error.message}`;
-      }
+      // Improved error handling to show more details
+      if (error) {
+        if (error.message) {
+          errorMessage += ` Error details: ${error.message}`;
+        }
 
-      if (error.code) {
-        errorMessage += ` (Code: ${error.code})`;
-      }
+        if (error.code) {
+          errorMessage += ` (Code: ${error.code})`;
+        }
 
-      // Add suggestion to use the direct create button for OpenAI-related errors
-      if (error.message && (
-        error.message.includes('OpenAI') ||
-        error.message.includes('API key') ||
-        error.message.includes('timeout') ||
-        error.message.includes('network')
-      )) {
-        errorMessage += ' This may be due to an issue with the AI service. Please try the Direct Create Business button below.';
+        // If error is an object, try to stringify it for more details
+        if (typeof error === 'object') {
+          try {
+            const errorJson = JSON.stringify(error, null, 2);
+            console.error('Error object details:', errorJson);
+
+            // Only add to the error message if it's not too long
+            if (errorJson.length < 200) {
+              errorMessage += ` Full error: ${errorJson}`;
+            }
+          } catch (e) {
+            console.error('Could not stringify error object:', e);
+          }
+        }
+
+        // Add suggestion to use the direct create button for OpenAI-related errors
+        if (error.message && (
+          error.message.includes('OpenAI') ||
+          error.message.includes('API key') ||
+          error.message.includes('timeout') ||
+          error.message.includes('network')
+        )) {
+          errorMessage += ' This may be due to an issue with the AI service. Please try the Direct Create Business button below.';
+        }
       }
 
       setError(errorMessage);
@@ -312,8 +331,29 @@ export default function CreateBusiness() {
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              <p className="mb-2">{error}</p>
-              <div className="flex space-x-2">
+              <h3 className="font-bold mb-2">Error</h3>
+
+              {/* Format the error message with better readability */}
+              <div className="mb-3 whitespace-pre-wrap overflow-auto max-h-60 text-sm">
+                {error.includes('{') && error.includes('}') ? (
+                  // If the error contains JSON, try to format it nicely
+                  <pre className="bg-red-50 p-2 rounded">{error}</pre>
+                ) : (
+                  // Otherwise just display it normally
+                  <p>{error}</p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {/* Refresh button */}
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm"
+                >
+                  Refresh Page
+                </button>
+
+                {/* Session refresh button */}
                 {error.includes('logged in') && (
                   <button
                     onClick={async () => {
@@ -338,6 +378,8 @@ export default function CreateBusiness() {
                     Refresh Session
                   </button>
                 )}
+
+                {/* Get User ID button */}
                 <button
                   onClick={async () => {
                     try {
@@ -364,6 +406,27 @@ export default function CreateBusiness() {
                 >
                   Get User ID
                 </button>
+
+                {/* Try Simple Method button */}
+                {error.includes('Error creating business') && (
+                  <button
+                    onClick={() => {
+                      // Scroll to the Super Simple Method button
+                      const simpleButton = document.querySelector('.bg-blue-500.hover\\:bg-blue-600');
+                      if (simpleButton) {
+                        simpleButton.scrollIntoView({ behavior: 'smooth' });
+                        // Add a highlight effect
+                        simpleButton.classList.add('ring-4', 'ring-blue-300');
+                        setTimeout(() => {
+                          simpleButton.classList.remove('ring-4', 'ring-blue-300');
+                        }, 2000);
+                      }
+                    }}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-2 rounded text-sm"
+                  >
+                    Try Simple Method
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -490,11 +553,31 @@ export default function CreateBusiness() {
                             }, 1000);
                           } else {
                             console.error('Error creating business:', data);
-                            setError(`Error creating business: ${data.message || 'Unknown error'}`);
+                            // Improved error handling to show more details
+                            const errorDetails = typeof data === 'object' ?
+                              JSON.stringify(data, null, 2) :
+                              (data?.message || 'Unknown error');
+                            setError(`Error creating business: ${errorDetails}`);
                           }
                         } catch (error) {
                           console.error('Error in direct business creation:', error);
-                          setError(`Error creating business: ${error instanceof Error ? error.message : String(error)}`);
+
+                          // Improved error handling for the catch block
+                          let errorMessage = 'Unknown error';
+
+                          if (error instanceof Error) {
+                            errorMessage = error.message;
+                          } else if (typeof error === 'object') {
+                            try {
+                              errorMessage = JSON.stringify(error, null, 2);
+                            } catch (e) {
+                              errorMessage = 'Error object could not be stringified';
+                            }
+                          } else if (error !== null && error !== undefined) {
+                            errorMessage = String(error);
+                          }
+
+                          setError(`Error creating business: ${errorMessage}`);
                         } finally {
                           setIsLoading(false);
                         }
@@ -544,11 +627,31 @@ export default function CreateBusiness() {
                             }, 1000);
                           } else {
                             console.error('Error creating business with simple method:', data);
-                            setError(`Error creating business: ${data.message || 'Unknown error'}`);
+                            // Improved error handling to show more details
+                            const errorDetails = typeof data === 'object' ?
+                              JSON.stringify(data, null, 2) :
+                              (data?.message || 'Unknown error');
+                            setError(`Error creating business: ${errorDetails}`);
                           }
                         } catch (error) {
                           console.error('Error in simple business creation:', error);
-                          setError(`Error creating business: ${error instanceof Error ? error.message : String(error)}`);
+
+                          // Improved error handling for the catch block
+                          let errorMessage = 'Unknown error';
+
+                          if (error instanceof Error) {
+                            errorMessage = error.message;
+                          } else if (typeof error === 'object') {
+                            try {
+                              errorMessage = JSON.stringify(error, null, 2);
+                            } catch (e) {
+                              errorMessage = 'Error object could not be stringified';
+                            }
+                          } else if (error !== null && error !== undefined) {
+                            errorMessage = String(error);
+                          }
+
+                          setError(`Error creating business: ${errorMessage}`);
                         } finally {
                           setIsLoading(false);
                         }
