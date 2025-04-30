@@ -11,34 +11,74 @@ import { Business } from '@/utils/supabaseClient';
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userId } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
+  // This effect runs once when the component mounts
   useEffect(() => {
-    const fetchBusinesses = async () => {
-      // Check for user ID in localStorage as a fallback
-      const localUserId = typeof window !== 'undefined' ? window.localStorage.getItem('temp_user_id') : null;
-      const effectiveUserId = userId || localUserId;
+    const initializeDashboard = async () => {
+      if (!user) {
+        console.log('Dashboard: No user, waiting for authentication...');
+        return;
+      }
 
-      if (effectiveUserId) {
-        try {
-          console.log('Fetching businesses for user ID:', effectiveUserId);
-          setLoading(true);
-          const businessesData = await getBusinesses(effectiveUserId);
-          console.log('Fetched businesses:', businessesData);
-          setBusinesses(businessesData);
-        } catch (error) {
-          console.error('Error fetching businesses:', error);
-        } finally {
-          setLoading(false);
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log('Dashboard: User authenticated, initializing dashboard for:', user.email);
+
+        // Step 1: Check for user ID in localStorage
+        const localUserId = typeof window !== 'undefined' ? window.localStorage.getItem('temp_user_id') : null;
+
+        if (localUserId) {
+          console.log('Dashboard: Found user ID in localStorage:', localUserId);
+
+          // Fetch businesses with the localStorage user ID
+          try {
+            const businessesData = await getBusinesses(localUserId);
+            console.log('Dashboard: Fetched businesses with localStorage userId:', businessesData);
+            setBusinesses(businessesData);
+            setLoading(false);
+            return;
+          } catch (fetchError) {
+            console.error('Dashboard: Error fetching businesses with localStorage userId:', fetchError);
+            // Continue to next step if this fails
+          }
         }
-      } else if (user) {
-        // We have a user but no userId, try to create one
-        console.log('No userId available but user is authenticated, trying to create user via API');
-        try {
-          setLoading(true);
 
-          // Try to create a user via the API
-          const response = await fetch('/api/auth/create-user', {
+        // Step 2: Try to get user from API
+        console.log('Dashboard: Checking user via API');
+        try {
+          const userResponse = await fetch('/api/auth/user');
+          const userData = await userResponse.json();
+
+          console.log('Dashboard: API user response:', userData);
+
+          if (userData.status === 'success' && userData.authenticated && userData.userId) {
+            console.log('Dashboard: Got userId from API:', userData.userId);
+
+            // Store in localStorage
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('temp_user_id', userData.userId);
+            }
+
+            // Fetch businesses with the API user ID
+            const businessesData = await getBusinesses(userData.userId);
+            console.log('Dashboard: Fetched businesses with API userId:', businessesData);
+            setBusinesses(businessesData);
+            setLoading(false);
+            return;
+          }
+        } catch (apiError) {
+          console.error('Dashboard: Error checking user via API:', apiError);
+          // Continue to next step if this fails
+        }
+
+        // Step 3: Create a new user
+        console.log('Dashboard: Creating new user via API');
+        try {
+          const createResponse = await fetch('/api/auth/create-user', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -50,40 +90,40 @@ export default function Dashboard() {
             }),
           });
 
-          const apiData = await response.json();
-          console.log('Dashboard: API create user response:', apiData);
+          const createData = await createResponse.json();
+          console.log('Dashboard: API create user response:', createData);
 
-          if (apiData.status === 'success' && apiData.userId) {
-            console.log('Dashboard: User created via API with ID:', apiData.userId);
+          if (createData.status === 'success' && createData.userId) {
+            console.log('Dashboard: User created via API with ID:', createData.userId);
 
             // Store in localStorage
             if (typeof window !== 'undefined') {
-              window.localStorage.setItem('temp_user_id', apiData.userId);
+              window.localStorage.setItem('temp_user_id', createData.userId);
             }
 
-            // Now fetch businesses with the new userId
-            const businessesData = await getBusinesses(apiData.userId);
-            console.log('Fetched businesses with new userId:', businessesData);
+            // Fetch businesses with the new user ID
+            const businessesData = await getBusinesses(createData.userId);
+            console.log('Dashboard: Fetched businesses with new userId:', businessesData);
             setBusinesses(businessesData);
+            setLoading(false);
+            return;
           } else {
-            console.error('Dashboard: Failed to create user via API');
+            throw new Error('Failed to create user via API');
           }
-        } catch (error) {
-          console.error('Dashboard: Error creating user or fetching businesses:', error);
-        } finally {
+        } catch (createError) {
+          console.error('Dashboard: Error creating user via API:', createError);
+          setError('Failed to initialize user. Please try logging out and back in.');
           setLoading(false);
         }
-      } else {
-        console.log('No userId available (neither in context nor localStorage) and no user, skipping business fetch');
+      } catch (error) {
+        console.error('Dashboard: Unhandled error in initialization:', error);
+        setError('An unexpected error occurred. Please try refreshing the page.');
         setLoading(false);
       }
     };
 
-    // Only fetch businesses if we're not in the loading state
-    if (!loading) {
-      fetchBusinesses();
-    }
-  }, [userId, user, loading]);
+    initializeDashboard();
+  }, [user]);
 
   return (
     <ProtectedRoute>
@@ -95,6 +135,19 @@ export default function Dashboard() {
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+              <p className="font-bold">Error</p>
+              <p>{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-sm text-red-700 underline"
+              >
+                Refresh Page
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center">
