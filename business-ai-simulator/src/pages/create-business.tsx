@@ -448,8 +448,10 @@ export default function CreateBusiness() {
 
                   <div className="border-t pt-4 mt-2">
                     <p className="text-sm text-gray-600 mb-2">
-                      Having trouble? Try our direct creation option:
+                      Having trouble? Try one of our alternative creation options:
                     </p>
+
+                    {/* Direct Method Button */}
                     <button
                       type="button"
                       onClick={async () => {
@@ -478,8 +480,8 @@ export default function CreateBusiness() {
                             setError(`Business created successfully with ID: ${data.business.id}`);
 
                             // Store the user ID in localStorage
-                            if (typeof window !== 'undefined' && data.user && data.user.id) {
-                              window.localStorage.setItem('temp_user_id', data.user.id);
+                            if (typeof window !== 'undefined' && data.auth0_id) {
+                              window.localStorage.setItem('temp_user_id', data.auth0_id);
                             }
 
                             // Redirect to the business detail page after a delay
@@ -497,13 +499,69 @@ export default function CreateBusiness() {
                           setIsLoading(false);
                         }
                       }}
-                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
                       disabled={isLoading}
                     >
                       {isLoading ? 'Creating...' : 'Create Business (Direct Method)'}
                     </button>
+
+                    {/* Super Simple Method Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        setError(null);
+
+                        try {
+                          // Call the simple business creation endpoint
+                          const response = await fetch('/api/debug/simple-create-business', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              name: formData.name || 'Simple Business',
+                              type: formData.type || 'Simple Type',
+                              description: formData.description || 'Simple Description'
+                            }),
+                          });
+
+                          const data = await response.json();
+                          console.log('Simple business creation response:', data);
+
+                          if (data.status === 'success' && data.business) {
+                            console.log('Business created successfully with simple method:', data.business);
+                            setError(`Business created successfully with ID: ${data.business.id}`);
+
+                            // Store the user ID in localStorage
+                            if (typeof window !== 'undefined' && data.user_id) {
+                              window.localStorage.setItem('temp_user_id', data.user_id);
+                            }
+
+                            // Redirect to the business detail page after a delay
+                            setTimeout(() => {
+                              window.location.href = `/businesses/${data.business.id}`;
+                            }, 1000);
+                          } else {
+                            console.error('Error creating business with simple method:', data);
+                            setError(`Error creating business: ${data.message || 'Unknown error'}`);
+                          }
+                        } catch (error) {
+                          console.error('Error in simple business creation:', error);
+                          setError(`Error creating business: ${error instanceof Error ? error.message : String(error)}`);
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Creating...' : 'Create Business (Super Simple Method)'}
+                    </button>
+
                     <p className="text-xs mt-1 text-gray-500">
-                      This option creates your business with default AI agents, bypassing the AI generation process.
+                      These options create your business with default AI agents, bypassing the AI generation process.
+                      Try the Super Simple Method if the Direct Method fails.
                     </p>
                   </div>
                 </div>
