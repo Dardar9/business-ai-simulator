@@ -424,7 +424,7 @@ export default function CreateBusiness() {
                     }}
                     className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-2 rounded text-sm"
                   >
-                    Try Admin Method
+                    Try AI Business (Admin Method)
                   </button>
                 )}
               </div>
@@ -670,6 +670,15 @@ export default function CreateBusiness() {
                         setError(null);
 
                         try {
+                          // Get the user's credentials from localStorage or Auth0
+                          const currentUserId = userId || window.localStorage.getItem('temp_user_id') || '';
+                          const currentUserEmail = window.localStorage.getItem('user_email') || '';
+
+                          console.log('Using credentials for admin business creation:', {
+                            userId: currentUserId,
+                            email: currentUserEmail
+                          });
+
                           // Call the admin business creation endpoint
                           const response = await fetch('/api/debug/admin-create-business', {
                             method: 'POST',
@@ -679,7 +688,9 @@ export default function CreateBusiness() {
                             body: JSON.stringify({
                               name: formData.name || 'Admin Business',
                               type: formData.type || 'Admin Type',
-                              description: formData.description || 'Created with admin privileges'
+                              description: formData.description || '',
+                              userId: currentUserId,
+                              email: currentUserEmail
                             }),
                           });
 
@@ -733,12 +744,15 @@ export default function CreateBusiness() {
                       className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
                       disabled={isLoading}
                     >
-                      {isLoading ? 'Creating...' : 'Create Business (Admin Method)'}
+                      {isLoading ? 'Creating...' : 'Create AI Business (Admin Method)'}
                     </button>
 
                     <p className="text-xs mt-1 text-gray-500">
-                      These options create your business with default AI agents, bypassing the AI generation process.
-                      Try the Admin Method if other methods fail due to permission issues.
+                      These options provide alternative ways to create your business:
+                      <br />• Direct Method: Creates a business with default agents
+                      <br />• Super Simple Method: Creates a business with default agents using a simplified approach
+                      <br />• Admin Method: Creates a business with AI-generated agents and uses your existing account if possible
+                      <br /><span className="font-semibold">Recommended: Use the Admin Method if other methods fail.</span>
                     </p>
                   </div>
                 </div>
