@@ -15,14 +15,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       console.log('ProtectedRoute: Starting authentication check');
-
+      
       // First check: If we have a user from the auth context, we're authenticated
       if (user) {
         console.log('ProtectedRoute: User found in auth context');
         setIsAuthenticated(true);
         return;
       }
-
+      
       // Second check: Check if we have a user ID in localStorage
       const localUserId = typeof window !== 'undefined' ? window.localStorage.getItem('temp_user_id') : null;
       if (localUserId) {
@@ -30,17 +30,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         setIsAuthenticated(true);
         return;
       }
-
+      
       // Third check: Check if we're on the dashboard page and there's a user in localStorage
       if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) {
         // This is a special case for the dashboard page
         console.log('ProtectedRoute: On dashboard page, checking localStorage');
-
+        
         // Try to get user from API
         try {
           const response = await fetch('/api/auth/user');
           const data = await response.json();
-
+          
           if (data.status === 'success' && data.authenticated) {
             console.log('ProtectedRoute: User authenticated via API');
             setIsAuthenticated(true);
@@ -50,21 +50,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           console.error('ProtectedRoute: Error checking auth via API:', error);
         }
       }
-
+      
       // If we get here, we're not authenticated
       console.log('ProtectedRoute: No authentication found, redirecting to login');
       setIsAuthenticated(false);
       window.location.href = '/login';
     };
-
+    
     checkAuth();
-
+    
     // Set a timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       if (isAuthenticated === null) {
         console.log('ProtectedRoute: Authentication check timed out');
         setTimeoutOccurred(true);
-
+        
         // Force authentication if we're on the dashboard page
         if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) {
           console.log('ProtectedRoute: Forcing authentication for dashboard');
@@ -72,7 +72,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         }
       }
     }, 3000);
-
+    
     return () => clearTimeout(timeoutId);
   }, [user, router]);
 
