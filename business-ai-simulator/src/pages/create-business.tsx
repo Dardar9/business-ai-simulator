@@ -187,41 +187,89 @@ export default function CreateBusiness() {
       console.log('User ID:', userId);
       console.log('Form data:', formData);
 
-      // Generate AI agents for the business
-      console.log('Generating agents for business...');
-      const agents = await generateAgentsForBusiness(formData.type, formData.description);
-      console.log('Generated agents:', agents);
+      // Set a timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.log('Business creation timeout occurred');
+        setIsLoading(false);
+        setError('Business creation is taking longer than expected. Please try again or use the Direct Create Business button below.');
+      }, 15000); // 15 seconds timeout
 
-      // Create the business in Supabase
-      console.log('Creating business in Supabase...');
-      const businessData = {
-        user_id: effectiveUserId, // Use the effective user ID
-        name: formData.name,
-        type: formData.type,
-        description: formData.description
-      };
-      console.log('Business data to create:', businessData);
+      try {
+        // Generate AI agents for the business
+        console.log('Generating agents for business...');
+        let agents;
+        try {
+          agents = await generateAgentsForBusiness(formData.type, formData.description);
+          console.log('Generated agents:', agents);
+        } catch (agentError) {
+          console.error('Error generating agents:', agentError);
+          // Use default agents if AI generation fails
+          console.log('Using default agents due to error');
+          agents = [
+            {
+              id: uuidv4(),
+              name: 'AI CEO',
+              role: 'CEO',
+              description: 'Chief Executive Officer responsible for overall business strategy and leadership.',
+              skills: ['Leadership', 'Strategy', 'Decision Making', 'Business Development'],
+              avatar: '/avatars/ceo.png',
+              business_id: '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            },
+            {
+              id: uuidv4(),
+              name: 'AI CTO',
+              role: 'CTO',
+              description: 'Chief Technology Officer responsible for technical strategy and implementation.',
+              skills: ['Technical Leadership', 'Software Architecture', 'Innovation', 'Team Management'],
+              avatar: '/avatars/cto.png',
+              business_id: '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ];
+        }
 
-      const newBusiness = await createBusiness(businessData, agents);
-      console.log('Business creation result:', newBusiness);
+        // Create the business in Supabase
+        console.log('Creating business in Supabase...');
+        const businessData = {
+          user_id: effectiveUserId, // Use the effective user ID
+          name: formData.name,
+          type: formData.type,
+          description: formData.description
+        };
+        console.log('Business data to create:', businessData);
 
-      if (newBusiness && newBusiness.id) {
-        console.log('Business created successfully with ID:', newBusiness.id);
+        const newBusiness = await createBusiness(businessData, agents);
+        console.log('Business creation result:', newBusiness);
 
-        // Add a small delay before redirecting
-        setTimeout(() => {
-          console.log('Redirecting to business detail page...');
-          // Use window.location for a hard redirect instead of router.push
-          window.location.href = `/businesses/${newBusiness.id}`;
-        }, 500);
-      } else {
-        console.error('Failed to create business, no business returned or no ID');
-        setError('Failed to create business. Please try again.');
+        // Clear the timeout since we've completed the operation
+        clearTimeout(timeoutId);
+
+        if (newBusiness && newBusiness.id) {
+          console.log('Business created successfully with ID:', newBusiness.id);
+
+          // Add a small delay before redirecting
+          setTimeout(() => {
+            console.log('Redirecting to business detail page...');
+            // Use window.location for a hard redirect instead of router.push
+            window.location.href = `/businesses/${newBusiness.id}`;
+          }, 500);
+        } else {
+          console.error('Failed to create business, no business returned or no ID');
+          setError('Failed to create business. Please try again or use the Direct Create Business button below.');
+          setIsLoading(false);
+        }
+      } catch (innerError) {
+        // Clear the timeout if there's an error
+        clearTimeout(timeoutId);
+        throw innerError; // Re-throw to be caught by the outer catch block
       }
     } catch (error: any) {
       console.error('Error creating business:', error);
       // Provide more detailed error information
-      let errorMessage = 'An error occurred while creating your business. Please try again.';
+      let errorMessage = 'An error occurred while creating your business. Please try again or use the Direct Create Business button below.';
 
       if (error.message) {
         errorMessage += ` Error details: ${error.message}`;
@@ -231,9 +279,23 @@ export default function CreateBusiness() {
         errorMessage += ` (Code: ${error.code})`;
       }
 
+      // Add suggestion to use the direct create button for OpenAI-related errors
+      if (error.message && (
+        error.message.includes('OpenAI') ||
+        error.message.includes('API key') ||
+        error.message.includes('timeout') ||
+        error.message.includes('network')
+      )) {
+        errorMessage += ' This may be due to an issue with the AI service. Please try the Direct Create Business button below.';
+      }
+
       setError(errorMessage);
     } finally {
+      // Ensure loading state is reset
       setIsLoading(false);
+
+      // Add a console log to confirm loading state was reset
+      console.log('Loading state reset to false');
     }
   };
 
@@ -355,32 +417,95 @@ export default function CreateBusiness() {
                   />
                 </div>
 
-                <div className="flex justify-between mb-4">
-                  <button
-                    type="button"
-                    onClick={() => router.back()}
-                    className="btn-secondary"
-                  >
-                    Cancel
-                  </button>
+                <div className="flex flex-col space-y-4 mb-4">
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      onClick={() => router.back()}
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </button>
 
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Creating Business...
-                      </span>
-                    ) : (
-                      'Create Business'
-                    )}
-                  </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Creating Business...
+                        </span>
+                      ) : (
+                        'Create Business'
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="border-t pt-4 mt-2">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Having trouble? Try our direct creation option:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        setError(null);
+
+                        try {
+                          // Call the direct business creation endpoint
+                          const response = await fetch('/api/debug/direct-create-business', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              name: formData.name || 'Debug Business',
+                              type: formData.type || 'Debug Type',
+                              description: formData.description || 'Debug Description'
+                            }),
+                          });
+
+                          const data = await response.json();
+                          console.log('Direct business creation response:', data);
+
+                          if (data.status === 'success' && data.business) {
+                            console.log('Business created successfully:', data.business);
+                            setError(`Business created successfully with ID: ${data.business.id}`);
+
+                            // Store the user ID in localStorage
+                            if (typeof window !== 'undefined' && data.user && data.user.id) {
+                              window.localStorage.setItem('temp_user_id', data.user.id);
+                            }
+
+                            // Redirect to the business detail page after a delay
+                            setTimeout(() => {
+                              window.location.href = `/businesses/${data.business.id}`;
+                            }, 1000);
+                          } else {
+                            console.error('Error creating business:', data);
+                            setError(`Error creating business: ${data.message || 'Unknown error'}`);
+                          }
+                        } catch (error) {
+                          console.error('Error in direct business creation:', error);
+                          setError(`Error creating business: ${error instanceof Error ? error.message : String(error)}`);
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Creating...' : 'Create Business (Direct Method)'}
+                    </button>
+                    <p className="text-xs mt-1 text-gray-500">
+                      This option creates your business with default AI agents, bypassing the AI generation process.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Debug buttons */}
