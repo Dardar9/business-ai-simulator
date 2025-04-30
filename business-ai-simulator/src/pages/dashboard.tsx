@@ -31,8 +31,50 @@ export default function Dashboard() {
         } finally {
           setLoading(false);
         }
+      } else if (user) {
+        // We have a user but no userId, try to create one
+        console.log('No userId available but user is authenticated, trying to create user via API');
+        try {
+          setLoading(true);
+
+          // Try to create a user via the API
+          const response = await fetch('/api/auth/create-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.user_metadata?.name || user.email.split('@')[0],
+              auth0_id: user.id
+            }),
+          });
+
+          const apiData = await response.json();
+          console.log('Dashboard: API create user response:', apiData);
+
+          if (apiData.status === 'success' && apiData.userId) {
+            console.log('Dashboard: User created via API with ID:', apiData.userId);
+
+            // Store in localStorage
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('temp_user_id', apiData.userId);
+            }
+
+            // Now fetch businesses with the new userId
+            const businessesData = await getBusinesses(apiData.userId);
+            console.log('Fetched businesses with new userId:', businessesData);
+            setBusinesses(businessesData);
+          } else {
+            console.error('Dashboard: Failed to create user via API');
+          }
+        } catch (error) {
+          console.error('Dashboard: Error creating user or fetching businesses:', error);
+        } finally {
+          setLoading(false);
+        }
       } else {
-        console.log('No userId available (neither in context nor localStorage), skipping business fetch');
+        console.log('No userId available (neither in context nor localStorage) and no user, skipping business fetch');
         setLoading(false);
       }
     };
@@ -41,7 +83,7 @@ export default function Dashboard() {
     if (!loading) {
       fetchBusinesses();
     }
-  }, [userId, loading]);
+  }, [userId, user, loading]);
 
   return (
     <ProtectedRoute>

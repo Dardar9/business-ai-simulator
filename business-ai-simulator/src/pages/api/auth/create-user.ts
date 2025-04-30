@@ -15,7 +15,7 @@ export default async function handler(
       });
     }
 
-    const { email, name } = req.body;
+    const { email, name, auth0_id } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -23,6 +23,8 @@ export default async function handler(
         message: 'Email is required'
       });
     }
+
+    console.log('API: Create user request:', { email, name, auth0_id });
 
     console.log('API: Creating user in database directly with email:', email);
 
@@ -50,9 +52,35 @@ export default async function handler(
       });
     }
 
+    // Check if user already exists by auth0_id if provided
+    if (auth0_id) {
+      try {
+        console.log('API: Checking if user exists by auth0_id:', auth0_id);
+        const { data: existingUserByAuth0Id, error: auth0CheckError } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('auth0_id', auth0_id)
+          .maybeSingle();
+
+        if (auth0CheckError) {
+          console.error('API: Error checking user existence by auth0_id:', auth0CheckError);
+        } else if (existingUserByAuth0Id) {
+          console.log('API: User already exists in database by auth0_id, returning existing ID:', existingUserByAuth0Id.id);
+          return res.status(200).json({
+            status: 'success',
+            message: 'User already exists by auth0_id',
+            userId: existingUserByAuth0Id.id
+          });
+        }
+      } catch (auth0Error) {
+        console.error('API: Exception checking user by auth0_id:', auth0Error);
+        // Continue to check by email
+      }
+    }
+
     // Check if user already exists by email
     try {
-      const { data: existingUserByEmail, error: emailCheckError } = await supabase
+      const { data: existingUserByEmail, error: emailCheckError } = await supabaseAdmin
         .from('users')
         .select('id')
         .eq('email', email)
@@ -60,18 +88,28 @@ export default async function handler(
 
       if (emailCheckError) {
         console.error('API: Error checking user existence by email:', emailCheckError);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Error checking user existence by email',
-          error: emailCheckError
-        });
-      }
+        // Try with regular client as fallback
+        const { data: regularExistingUser, error: regularEmailCheckError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
 
-      if (existingUserByEmail) {
+        if (regularEmailCheckError) {
+          console.error('API: Error checking user existence by email with regular client:', regularEmailCheckError);
+        } else if (regularExistingUser) {
+          console.log('API: User already exists in database by email (regular client), returning existing ID:', regularExistingUser.id);
+          return res.status(200).json({
+            status: 'success',
+            message: 'User already exists by email',
+            userId: regularExistingUser.id
+          });
+        }
+      } else if (existingUserByEmail) {
         console.log('API: User already exists in database by email, returning existing ID:', existingUserByEmail.id);
         return res.status(200).json({
           status: 'success',
-          message: 'User already exists',
+          message: 'User already exists by email',
           userId: existingUserByEmail.id
         });
       }
@@ -104,12 +142,14 @@ export default async function handler(
     try {
       const timestamp = new Date().toISOString();
       const newUserData = {
-        auth0_id: randomId, // Using a random ID since we don't have a real auth0_id
+        auth0_id: auth0_id || randomId, // Use provided auth0_id if available, otherwise use random ID
         email,
         name: name || email.split('@')[0], // Use part of email as name if not provided
         created_at: timestamp,
         updated_at: timestamp
       };
+
+      console.log('API: Creating user with data:', newUserData);
 
       // Try with admin client first to bypass RLS
       const { data: newUser, error: createError } = await supabaseAdmin
@@ -140,9 +180,11 @@ export default async function handler(
         // Try a simpler approach if both previous attempts fail
         console.log('API: Trying with minimal fields...');
         const simpleUserData = {
-          auth0_id: randomId,
+          auth0_id: auth0_id || randomId,
           email
         };
+
+        console.log('API: Creating simple user with data:', simpleUserData);
 
         const { data: simpleUser, error: simpleError } = await supabaseAdmin
           .from('users')

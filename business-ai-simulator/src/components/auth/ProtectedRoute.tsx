@@ -75,19 +75,71 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             setLocalLoading(false);
           }
         } else if (!userId && !localUserId && retryCount < 2) {
-          // We have a user but no userId and no localStorage value, try to refresh again
-          console.log('ProtectedRoute: User is authenticated but no userId, trying to refresh again...');
+          // We have a user but no userId and no localStorage value, try to create a user via API
+          console.log('ProtectedRoute: User is authenticated but no userId, trying to create user via API...');
           try {
-            await refreshSession();
-            setRetryCount(prev => prev + 1);
+            // Try to create a user via the API
+            const response = await fetch('/api/auth/create-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                email: user.email,
+                name: user.user_metadata?.name || user.email.split('@')[0],
+                auth0_id: user.id
+              }),
+            });
+
+            const apiData = await response.json();
+            console.log('ProtectedRoute: API create user response:', apiData);
+
+            if (apiData.status === 'success' && apiData.userId) {
+              console.log('ProtectedRoute: User created via API with ID:', apiData.userId);
+
+              // Store in localStorage and proceed
+              window.localStorage.setItem('temp_user_id', apiData.userId);
+              setAuthChecked(true);
+              setLocalLoading(false);
+            } else {
+              // If API call fails, try refreshing the session one more time
+              console.log('ProtectedRoute: API call failed, trying to refresh session...');
+              try {
+                await refreshSession();
+                setRetryCount(prev => prev + 1);
+              } catch (refreshError) {
+                console.error('ProtectedRoute: Error refreshing session for userId:', refreshError);
+                setRetryCount(prev => prev + 1);
+              }
+            }
           } catch (error) {
-            console.error('ProtectedRoute: Error refreshing session for userId:', error);
+            console.error('ProtectedRoute: Error creating user via API:', error);
             setRetryCount(prev => prev + 1);
           }
         } else if (!userId && !localUserId) {
-          // After retries, still no userId, redirect to login
-          console.log('ProtectedRoute: User is authenticated but no userId after retries, redirecting to login...');
-          window.location.href = '/login?error=no_user_id';
+          // After retries, still no userId, try one last direct API call
+          console.log('ProtectedRoute: User is authenticated but no userId after retries, trying direct API call...');
+          try {
+            const response = await fetch('/api/auth/user');
+            const data = await response.json();
+
+            console.log('ProtectedRoute: Final API auth check response:', data);
+
+            if (data.status === 'success' && data.authenticated && data.userId) {
+              console.log('ProtectedRoute: Got userId from final API call:', data.userId);
+              // Store in localStorage and proceed
+              window.localStorage.setItem('temp_user_id', data.userId);
+              setAuthChecked(true);
+              setLocalLoading(false);
+            } else {
+              // If all else fails, redirect to login
+              console.log('ProtectedRoute: All attempts failed, redirecting to login...');
+              window.location.href = '/login?error=no_user_id';
+            }
+          } catch (error) {
+            console.error('ProtectedRoute: Error in final API check:', error);
+            window.location.href = '/login?error=api_error';
+          }
         } else {
           // User is authenticated and we have a userId
           console.log('ProtectedRoute: User is authenticated:', user.id, 'with userId:', userId || localUserId);
