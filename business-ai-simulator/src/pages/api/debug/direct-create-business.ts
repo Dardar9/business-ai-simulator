@@ -36,6 +36,9 @@ export default async function handler(
       const DIRECT_CREATION_USER_ID = 'direct_creation_user';
       const timestamp = new Date().toISOString();
 
+      // Declare userId variable at the beginning with the correct type
+      let userId: string = DIRECT_CREATION_USER_ID;
+
       // First, check if our special user exists
       const { data: existingUser, error: userCheckError } = await supabase
         .from('users')
@@ -92,18 +95,18 @@ export default async function handler(
             }
 
             console.log('API: Using existing user for business creation:', anyUser);
-            var userId = anyUser.auth0_id;
+            userId = anyUser.auth0_id;
           } else {
             console.log('API: Created minimal special user:', minimalUser);
-            var userId = DIRECT_CREATION_USER_ID;
+            // No need to reassign, already using DIRECT_CREATION_USER_ID
           }
         } else {
           console.log('API: Created special user:', newUser);
-          var userId = DIRECT_CREATION_USER_ID;
+          // No need to reassign, already using DIRECT_CREATION_USER_ID
         }
       } else {
         console.log('API: Special user already exists:', existingUser);
-        var userId = DIRECT_CREATION_USER_ID;
+        // No need to reassign, already using DIRECT_CREATION_USER_ID
       }
 
       console.log('API: Using user ID for business creation:', userId);
