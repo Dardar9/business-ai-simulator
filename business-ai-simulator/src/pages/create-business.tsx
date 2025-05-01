@@ -701,9 +701,16 @@ export default function CreateBusiness() {
                             console.log('Business created successfully with admin method:', data.business);
                             setError(`Business created successfully with ID: ${data.business.id}`);
 
-                            // Store the user ID in localStorage
-                            if (typeof window !== 'undefined' && data.user_id) {
-                              window.localStorage.setItem('temp_user_id', data.user_id);
+                            // Store the user ID and email in localStorage
+                            if (typeof window !== 'undefined') {
+                              if (data.user_id) {
+                                window.localStorage.setItem('temp_user_id', data.user_id);
+                              }
+
+                              // Store the email from the form or current email
+                              if (currentUserEmail) {
+                                window.localStorage.setItem('user_email', currentUserEmail);
+                              }
                             }
 
                             // Redirect to the business detail page after a delay

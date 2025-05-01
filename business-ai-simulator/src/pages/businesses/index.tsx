@@ -89,7 +89,40 @@ export default function Businesses() {
         if (effectiveUserId) {
           console.log('Fetching businesses for userId:', effectiveUserId);
 
-          // First try using the utility function
+          // First try using the admin API endpoint
+          try {
+            console.log('Trying admin API endpoint');
+
+            // Get user email from localStorage if available
+            const userEmail = typeof window !== 'undefined' ? window.localStorage.getItem('user_email') : null;
+
+            // Build the query parameters
+            const queryParams = new URLSearchParams();
+            if (effectiveUserId) queryParams.append('userId', effectiveUserId);
+            if (userEmail) queryParams.append('email', userEmail);
+
+            const response = await fetch(`/api/debug/admin-get-businesses?${queryParams.toString()}`);
+            const data = await response.json();
+
+            if (data.status === 'success' && data.businesses) {
+              console.log('Found businesses using admin API:', data.businesses);
+              setBusinesses(data.businesses);
+
+              // Store the user ID for future use
+              if (typeof window !== 'undefined' && data.user_id) {
+                window.localStorage.setItem('temp_user_id', data.user_id);
+              }
+
+              setLoading(false);
+              return;
+            } else {
+              console.error('Admin API did not return businesses:', data);
+            }
+          } catch (adminError) {
+            console.error('Error using admin API endpoint:', adminError);
+          }
+
+          // If admin API fails, try using the utility function
           try {
             const businessesData = await getBusinesses(effectiveUserId);
             if (businessesData && businessesData.length > 0) {

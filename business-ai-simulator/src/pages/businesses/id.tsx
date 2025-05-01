@@ -53,9 +53,32 @@ export default function BusinessDetail() {
       if (id && typeof id === 'string') {
         try {
           setLoading(true);
+
+          // First try using the admin API endpoint
+          try {
+            console.log('Trying admin API endpoint for business ID:', id);
+
+            const response = await fetch(`/api/debug/admin-get-business?id=${id}`);
+            const data = await response.json();
+
+            if (data.status === 'success' && data.business) {
+              console.log('Found business using admin API:', data.business);
+              setBusiness(data.business);
+              setLoading(false);
+              return;
+            } else {
+              console.error('Admin API did not return business:', data);
+            }
+          } catch (adminError) {
+            console.error('Error using admin API endpoint:', adminError);
+          }
+
+          // If admin API fails, try using the utility function
+          console.log('Falling back to utility function for business ID:', id);
           const businessData = await getBusinessById(id);
 
           if (businessData) {
+            console.log('Found business using utility function:', businessData);
             setBusiness(businessData);
           } else {
             console.error('Business not found with ID:', id);
@@ -221,14 +244,33 @@ export default function BusinessDetail() {
                       </div>
                       <p className="mb-4">{agent.description}</p>
                       <div className="flex flex-wrap gap-2">
-                        {agent.skills?.map((skill, index) => (
-                          <span
-                            key={index}
-                            className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded"
-                          >
-                            {skill}
-                          </span>
-                        ))}
+                        {(() => {
+                          // Parse skills if it's a string
+                          let skillsArray = [];
+
+                          if (agent.skills) {
+                            if (typeof agent.skills === 'string') {
+                              try {
+                                skillsArray = JSON.parse(agent.skills);
+                              } catch (e) {
+                                console.error('Error parsing skills:', e);
+                                // If parsing fails, just display the string
+                                skillsArray = [agent.skills];
+                              }
+                            } else if (Array.isArray(agent.skills)) {
+                              skillsArray = agent.skills;
+                            }
+                          }
+
+                          return skillsArray.map((skill, index) => (
+                            <span
+                              key={index}
+                              className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded"
+                            >
+                              {skill}
+                            </span>
+                          ));
+                        })()}
                       </div>
                     </div>
                   ))}
