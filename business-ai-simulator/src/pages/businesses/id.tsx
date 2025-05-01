@@ -246,7 +246,7 @@ export default function BusinessDetail() {
                       <div className="flex flex-wrap gap-2">
                         {(() => {
                           // Parse skills if it's a string
-                          let skillsArray = [];
+                          let skillsArray: string[] = [];
 
                           if (agent.skills) {
                             if (typeof agent.skills === 'string') {
@@ -262,7 +262,7 @@ export default function BusinessDetail() {
                             }
                           }
 
-                          return skillsArray.map((skill, index) => (
+                          return skillsArray.map((skill: string, index: number) => (
                             <span
                               key={index}
                               className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded"
